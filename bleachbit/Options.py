@@ -33,13 +33,8 @@ import re
 
 logger = logging.getLogger(__name__)
 
-if 'nt' == os.name:
-    from win32file import GetLongPathName
-
 
 boolean_keys = ['auto_hide',
-                'check_beta',
-                'check_online_updates',
                 'dark_mode',
                 'debug',
                 'delete_confirmation',
@@ -50,9 +45,7 @@ boolean_keys = ['auto_hide',
                 'units_iec',
                 'window_maximized',
                 'window_fullscreen']
-if 'nt' == os.name:
-    boolean_keys.append('update_winapp2')
-    boolean_keys.append('win10_theme')
+
 int_keys = ['window_x', 'window_y', 'window_width', 'window_height', ]
 
 
@@ -60,9 +53,7 @@ def path_to_option(pathname):
     """Change a pathname to a .ini option name (a key)"""
     # On Windows change to lowercase and use backwards slashes.
     pathname = os.path.normcase(pathname)
-    # On Windows expand DOS-8.3-style pathnames.
-    if 'nt' == os.name and os.path.exists(pathname):
-        pathname = GetLongPathName(pathname)
+
     if ':' == pathname[1]:
         # ConfigParser treats colons in a special way
         pathname = pathname[0] + pathname[2:]
@@ -78,8 +69,6 @@ def init_configuration():
         os.remove(bleachbit.options_file)
     with open(bleachbit.options_file, 'w', encoding='utf-8-sig') as f_ini:
         f_ini.write('[bleachbit]\n')
-        if os.name == 'nt' and bleachbit.portable_mode:
-            f_ini.write('[Portable]\n')
     for section in options.config.sections():
         options.config.remove_section(section)
     options.restore()
@@ -124,10 +113,7 @@ class Options:
             return
         for option in self.config.options('hashpath'):
             pathname = option
-            if 'nt' == os.name and re.search('^[a-z]\\\\', option):
-                # restore colon lost because ConfigParser treats colon special
-                # in keys
-                pathname = pathname[0] + ':' + pathname[1:]
+
             exists = False
             try:
                 exists = os.path.lexists(pathname)
@@ -151,8 +137,6 @@ class Options:
 
     def get(self, option, section='bleachbit'):
         """Retrieve a general option"""
-        if not 'nt' == os.name and 'update_winapp2' == option:
-            return False
         if section == 'hashpath' and option[1] == ':':
             option = option[0] + option[2:]
         if option in boolean_keys:
@@ -269,8 +253,6 @@ class Options:
 
         # set defaults
         self.__set_default("auto_hide", True)
-        self.__set_default("check_beta", False)
-        self.__set_default("check_online_updates", True)
         self.__set_default("dark_mode", True)
         self.__set_default("debug", False)
         self.__set_default("delete_confirmation", True)
@@ -280,10 +262,6 @@ class Options:
         self.__set_default("units_iec", False)
         self.__set_default("window_fullscreen", False)
         self.__set_default("window_maximized", False)
-
-        if 'nt' == os.name:
-            self.__set_default("update_winapp2", False)
-            self.__set_default("win10_theme", False)
 
         if not self.config.has_section('preserve_languages'):
             lang = bleachbit.user_locale

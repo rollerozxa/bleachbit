@@ -48,8 +48,6 @@ except (ImportError, RuntimeError, ValueError) as e:
 
 if 'posix' == os.name:
     from bleachbit import Unix
-elif 'nt' == os.name:
-    from bleachbit import Windows
 
 
 # a module-level variable for holding cleaners
@@ -160,10 +158,6 @@ class Cleaner:
                 if Unix.is_running(pathname):
                     logger.debug("process '%s' is running", pathname)
                     return True
-            elif 'exe' == test and 'nt' == os.name:
-                if Windows.is_process_running(pathname):
-                    logger.debug("process '%s' is running", pathname)
-                    return True
             elif 'pathname' == test:
                 expanded = os.path.expanduser(os.path.expandvars(pathname))
                 for globbed in glob.iglob(expanded):
@@ -204,9 +198,6 @@ class OpenOfficeOrg(Cleaner):
             self.prefixes = ["~/.ooo-2.0", "~/.openoffice.org2",
                              "~/.openoffice.org2.0", "~/.openoffice.org/3"]
             self.prefixes += ["~/.ooo-dev3"]
-        if 'nt' == os.name:
-            self.prefixes = [
-                "$APPDATA\\OpenOffice.org\\3", "$APPDATA\\OpenOffice.org2"]
 
     def get_commands(self, option_id):
         # paths for which to run expand_glob_join
@@ -223,8 +214,6 @@ class OpenOfficeOrg(Cleaner):
         for egj_ in egj:
             for prefix in self.prefixes:
                 for path in FileUtilities.expand_glob_join(prefix, egj_):
-                    if 'nt' == os.name:
-                        path = os.path.normpath(path)
                     if os.path.lexists(path):
                         yield Command.Delete(path)
 
@@ -234,8 +223,6 @@ class OpenOfficeOrg(Cleaner):
                 dirs += FileUtilities.expand_glob_join(
                     prefix, "user/registry/cache/")
             for dirname in dirs:
-                if 'nt' == os.name:
-                    dirname = os.path.normpath(dirname)
                 for filename in children_in_directory(dirname, False):
                     yield Command.Delete(filename)
 
@@ -303,23 +290,6 @@ class System(Cleaner):
                             _('Wipe the swap and free memory'))
             self.set_warning(
                 'memory', _('This option is experimental and may cause system problems.'))
-
-        #
-        # options just for Microsoft Windows
-        #
-        if 'nt' == os.name:
-            self.add_option('logs', _('Logs'), _('Delete the logs'))
-            self.add_option(
-                'memory_dump', _('Memory dump'), _('Delete the file'))
-            self.add_option('muicache', 'MUICache', _('Delete the cache'))
-            # TRANSLATORS: Prefetch is Microsoft Windows jargon.
-            self.add_option('prefetch', _('Prefetch'), _('Delete the cache'))
-            self.add_option(
-                'recycle_bin', _('Recycle bin'), _('Empty the recycle bin'))
-            # TRANSLATORS: 'Update' is a noun, and 'Update uninstallers' is an option to delete
-            # the uninstallers for software updates.
-            self.add_option('updates', _('Update uninstallers'), _(
-                'Delete uninstallers for Microsoft updates including hotfixes, service packs, and Internet Explorer updates'))
 
         #
         # options for GTK+
@@ -396,64 +366,9 @@ class System(Cleaner):
                         yield Command.Delete(f)
                 yield Command.Delete(path)
 
-        # Windows logs
-        if 'nt' == os.name and 'logs' == option_id:
-            paths = (
-                '$ALLUSERSPROFILE\\Application Data\\Microsoft\\Dr Watson\\*.log',
-                '$ALLUSERSPROFILE\\Application Data\\Microsoft\\Dr Watson\\user.dmp',
-                '$LocalAppData\\Microsoft\\Windows\\WER\\ReportArchive\\*\\*',
-                '$LocalAppData\\Microsoft\\Windows\WER\\ReportQueue\\*\\*',
-                '$programdata\\Microsoft\\Windows\\WER\\ReportArchive\\*\\*',
-                '$programdata\\Microsoft\\Windows\\WER\\ReportQueue\\*\\*',
-                '$localappdata\\Microsoft\\Internet Explorer\\brndlog.bak',
-                '$localappdata\\Microsoft\\Internet Explorer\\brndlog.txt',
-                '$windir\\*.log',
-                '$windir\\imsins.BAK',
-                '$windir\\OEWABLog.txt',
-                '$windir\\SchedLgU.txt',
-                '$windir\\ntbtlog.txt',
-                '$windir\\setuplog.txt',
-                '$windir\\REGLOCS.OLD',
-                '$windir\\Debug\\*.log',
-                '$windir\\Debug\\Setup\\UpdSh.log',
-                '$windir\\Debug\\UserMode\\*.log',
-                '$windir\\Debug\\UserMode\\ChkAcc.bak',
-                '$windir\\Debug\\UserMode\\userenv.bak',
-                '$windir\\Microsoft.NET\Framework\*\*.log',
-                '$windir\\pchealth\\helpctr\\Logs\\hcupdate.log',
-                '$windir\\security\\logs\\*.log',
-                '$windir\\security\\logs\\*.old',
-                '$windir\\SoftwareDistribution\\*.log',
-                '$windir\\SoftwareDistribution\\DataStore\\Logs\\*',
-                '$windir\\system32\\TZLog.log',
-                '$windir\\system32\\config\\systemprofile\\Application Data\\Microsoft\\Internet Explorer\\brndlog.bak',
-                '$windir\\system32\\config\\systemprofile\\Application Data\\Microsoft\\Internet Explorer\\brndlog.txt',
-                '$windir\\system32\\LogFiles\\AIT\\AitEventLog.etl.???',
-                '$windir\\system32\\LogFiles\\Firewall\\pfirewall.log*',
-                '$windir\\system32\\LogFiles\\Scm\\SCM.EVM*',
-                '$windir\\system32\\LogFiles\\WMI\\Terminal*.etl',
-                '$windir\\system32\\LogFiles\\WMI\\RTBackup\EtwRT.*etl',
-                '$windir\\system32\\wbem\\Logs\\*.lo_',
-                '$windir\\system32\\wbem\\Logs\\*.log', )
-
-            for path in paths:
-                expanded = os.path.expandvars(path)
-                for globbed in glob.iglob(expanded):
-                    yield Command.Delete(globbed)
-
         # memory
         if sys.platform.startswith('linux') and 'memory' == option_id:
             yield Command.Function(None, Memory.wipe_memory, _('Memory'))
-
-        # memory dump
-        # how to manually create this file
-        # http://www.pctools.com/guides/registry/detail/856/
-        if 'nt' == os.name and 'memory_dump' == option_id:
-            fname = os.path.expandvars('$windir\\memory.dmp')
-            if os.path.exists(fname):
-                yield Command.Delete(fname)
-            for fname in glob.iglob(os.path.expandvars('$windir\\Minidump\\*.dmp')):
-                yield Command.Delete(fname)
 
         # most recently used documents list
         if 'posix' == os.name and 'recent_documents' == option_id:
@@ -504,17 +419,6 @@ class System(Cleaner):
                     if ok:
                         yield Command.Delete(path)
 
-        # temporary files
-        if 'nt' == os.name and 'tmp' == option_id:
-            dirnames = [os.path.expandvars(r'%temp%'), os.path.expandvars("%windir%\\temp\\")]
-            # whitelist the folder %TEMP%\Low but not its contents
-            # https://bugs.launchpad.net/bleachbit/+bug/1421726
-            for dirname in dirnames:
-                low = os.path.join(dirname, 'low').lower()
-                for filename in children_in_directory(dirname, True):
-                    if not low == filename.lower():
-                        yield Command.Delete(filename)
-
         # trash
         if 'posix' == os.name and 'trash' == option_id:
             dirname = os.path.expanduser("~/.Trash")
@@ -562,51 +466,6 @@ class System(Cleaner):
                     yield 0
                 yield Command.Function(None, wipe_path_func, display)
 
-        # MUICache
-        if 'nt' == os.name and 'muicache' == option_id:
-            keys = (
-                'HKCU\\Software\\Microsoft\\Windows\\ShellNoRoam\\MUICache',
-                'HKCU\\Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\Shell\\MuiCache')
-            for key in keys:
-                yield Command.Winreg(key, None)
-
-        # prefetch
-        if 'nt' == os.name and 'prefetch' == option_id:
-            for path in glob.iglob(os.path.expandvars('$windir\\Prefetch\\*.pf')):
-                yield Command.Delete(path)
-
-        # recycle bin
-        if 'nt' == os.name and 'recycle_bin' == option_id:
-            # This method allows shredding
-            recycled_any = False
-            for path in Windows.get_recycle_bin():
-                recycled_any = True
-                yield Command.Delete(path)
-
-            # Windows 10 refreshes the recycle bin icon when the user
-            # opens the recycle bin folder.
-
-            # This is a hack to refresh the icon.
-            def empty_recycle_bin_func():
-                import tempfile
-                tmpdir = tempfile.mkdtemp()
-                Windows.move_to_recycle_bin(tmpdir)
-                try:
-                    Windows.empty_recycle_bin(None, True)
-                except:
-                    logging.getLogger(__name__).info(
-                        'error in empty_recycle_bin()', exc_info=True)
-                yield 0
-            # Using the Function Command prevents emptying the recycle bin
-            # when in preview mode.
-            if recycled_any:
-                yield Command.Function(None, empty_recycle_bin_func, _('Empty the recycle bin'))
-
-        # Windows Updates
-        if 'nt' == os.name and 'updates' == option_id:
-            for wu in Windows.delete_updates():
-                yield wu
-
     def init_whitelist(self):
         """Initialize the whitelist only once for performance"""
         regexes = [
@@ -644,9 +503,6 @@ class System(Cleaner):
 
     def whitelisted(self, pathname):
         """Return boolean whether file is whitelisted"""
-        if os.name == 'nt':
-            # Whitelist is specific to POSIX
-            return False
         if not self.regexes_compiled:
             self.init_whitelist()
         for regex in self.regexes_compiled:
@@ -656,7 +512,7 @@ class System(Cleaner):
 
 
 def register_cleaners(cb_progress=lambda x: None, cb_done=lambda: None):
-    """Register all known cleaners: system, CleanerML, and Winapp2"""
+    """Register all known cleaners: system and CleanerML"""
     global backends
 
     # wipe out any registrations
@@ -671,12 +527,6 @@ def register_cleaners(cb_progress=lambda x: None, cb_done=lambda: None):
     from bleachbit import CleanerML
     cb_progress(_('Loading native cleaners.'))
     yield from CleanerML.load_cleaners(cb_progress)
-
-    # register Winapp2.ini cleaners
-    if 'nt' == os.name:
-        cb_progress(_('Importing cleaners from Winapp2.ini.'))
-        from bleachbit import Winapp
-        yield from Winapp.load_cleaners(cb_progress)
 
     cb_done()
 

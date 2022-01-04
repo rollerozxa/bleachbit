@@ -31,11 +31,6 @@ import types
 
 from sqlite3 import DatabaseError
 
-if 'nt' == os.name:
-    import bleachbit.Windows
-else:
-    from bleachbit.General import WindowsError
-
 
 def whitelist(path):
     """Return information that this file was whitelisted"""
@@ -78,26 +73,7 @@ class Delete:
             'path': self.path,
             'size': FileUtilities.getsize(self.path)}
         if really_delete:
-            try:
-                FileUtilities.delete(self.path, self.shred)
-            except WindowsError as e:
-                # WindowsError: [Error 32] The process cannot access the file because it is being
-                # used by another process: 'C:\\Documents and
-                # Settings\\username\\Cookies\\index.dat'
-                if 32 != e.winerror and 5 != e.winerror:
-                    raise
-                try:
-                    bleachbit.Windows.delete_locked_file(self.path)
-                except:
-                    raise
-                else:
-                    if self.shred:
-                        import warnings
-                        warnings.warn(
-                            _('At least one file was locked by another process, so its contents could not be overwritten. It will be marked for deletion upon system reboot.'))
-                    # TRANSLATORS: The file will be deleted when the
-                    # system reboots
-                    ret['label'] = _('Mark for deletion')
+            FileUtilities.delete(self.path, self.shred)
         yield ret
 
 
@@ -286,43 +262,3 @@ class Truncate(Delete):
                 f.truncate(0)
         yield ret
 
-
-class Winreg:
-
-    """Clean Windows registry"""
-
-    def __init__(self, keyname, valuename):
-        """Create the Windows registry cleaner"""
-        self.keyname = keyname
-        self.valuename = valuename
-
-    def __str__(self):
-        return 'Command to clean registry, key=%s, value=%s ' % (self.keyname, self.valuename)
-
-    def execute(self, really_delete):
-        """Execute the Windows registry cleaner"""
-        if 'nt' != os.name:
-            return
-        _str = None  # string representation
-        ret = None  # return value meaning 'deleted' or 'delete-able'
-        if self.valuename:
-            _str = '%s<%s>' % (self.keyname, self.valuename)
-            ret = bleachbit.Windows.delete_registry_value(self.keyname,
-                                                          self.valuename, really_delete)
-        else:
-            ret = bleachbit.Windows.delete_registry_key(
-                self.keyname, really_delete)
-            _str = self.keyname
-        if not ret:
-            # Nothing to delete or nothing was deleted.  This return
-            # makes the auto-hide feature work nicely.
-            return
-
-        ret = {
-            'label': _('Delete registry key'),
-            'n_deleted': 0,
-            'n_special': 1,
-            'path': _str,
-            'size': 0}
-
-        yield ret

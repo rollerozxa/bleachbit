@@ -93,7 +93,6 @@ class CLITestCase(common.BleachbitTestCase):
         for cleaner in cleaners_list():
             self.assertIsString(cleaner)
 
-    @common.skipIfWindows
     def test_encoding(self):
         """Unit test for encoding"""
 
@@ -157,8 +156,6 @@ class CLITestCase(common.BleachbitTestCase):
         for i in range(len(prefixes)):
 
             filename = self.mkstemp(prefix=prefixes[i])
-            if 'nt' == os.name:
-                filename = os.path.normcase(filename)
             # replace delete function for testing
             save_delete = FileUtilities.delete
 
@@ -202,12 +199,3 @@ class CLITestCase(common.BleachbitTestCase):
                         'bleachbit.CLI', '--shred', filename]
                 output = run_external(args)
                 self.assertNotExists(filename)
-
-    @common.skipUnlessWindows
-    def test_gui_exit(self):
-        """Unit test for --gui --exit, only for Windows"""
-        args = [sys.executable, '-m',
-                'bleachbit.CLI', '--gui --exit']
-        output = run_external(args)
-        opened_windows_titles = common.get_opened_windows_titles()
-        self.assertFalse('BleachBit' in opened_windows_titles)

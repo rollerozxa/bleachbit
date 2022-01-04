@@ -24,7 +24,7 @@
 Preferences dialog
 """
 
-from bleachbit import _, _p, online_update_notification_enabled
+from bleachbit import _, _p
 from bleachbit.Options import options
 from bleachbit import GuiBasic
 
@@ -32,8 +32,6 @@ from gi.repository import Gtk
 import logging
 import os
 
-if 'nt' == os.name:
-    from bleachbit import Windows
 if 'posix' == os.name:
     from bleachbit import Unix
 
@@ -47,9 +45,8 @@ class PreferencesDialog:
 
     """Present the preferences dialog and save changes"""
 
-    def __init__(self, parent, cb_refresh_operations, cb_set_windows10_theme):
+    def __init__(self, parent, cb_refresh_operations):
         self.cb_refresh_operations = cb_refresh_operations
-        self.cb_set_windows10_theme = cb_set_windows10_theme
 
         self.parent = parent
         self.dialog = Gtk.Dialog(title=_("Preferences"),
@@ -86,20 +83,11 @@ class PreferencesDialog:
     def __toggle_callback(self, cell, path):
         """Callback function to toggle option"""
         options.toggle(path)
-        if online_update_notification_enabled:
-            self.cb_beta.set_sensitive(options.get('check_online_updates'))
-            if 'nt' == os.name:
-                self.cb_winapp2.set_sensitive(
-                    options.get('check_online_updates'))
         if 'auto_hide' == path:
             self.refresh_operations = True
         if 'dark_mode' == path:
-            if 'nt' == os.name and options.get('win10_theme'):
-                self.cb_set_windows10_theme()
             Gtk.Settings.get_default().set_property(
                 'gtk-application-prefer-dark-theme', options.get('dark_mode'))
-        if 'win10_theme' == path:
-            self.cb_set_windows10_theme()
         if 'debug' == path:
             from bleachbit.Log import set_root_log_level
             set_root_log_level()
@@ -108,38 +96,6 @@ class PreferencesDialog:
         """Return a widget containing the general page"""
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-
-        if online_update_notification_enabled:
-            cb_updates = Gtk.CheckButton.new_with_label(
-                _("Check periodically for software updates via the Internet"))
-            cb_updates.set_active(options.get('check_online_updates'))
-            cb_updates.connect(
-                'toggled', self.__toggle_callback, 'check_online_updates')
-            cb_updates.set_tooltip_text(
-                _("If an update is found, you will be given the option to view information about it.  Then, you may manually download and install the update."))
-            vbox.pack_start(cb_updates, False, True, 0)
-
-            updates_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-            updates_box.set_border_width(10)
-
-            self.cb_beta = Gtk.CheckButton.new_with_label(
-                label=_("Check for new beta releases"))
-            self.cb_beta.set_active(options.get('check_beta'))
-            self.cb_beta.set_sensitive(options.get('check_online_updates'))
-            self.cb_beta.connect(
-                'toggled', self.__toggle_callback, 'check_beta')
-            updates_box.pack_start(self.cb_beta, False, True, 0)
-
-            if 'nt' == os.name:
-                self.cb_winapp2 = Gtk.CheckButton.new_with_label(
-                    _("Download and update cleaners from community (winapp2.ini)"))
-                self.cb_winapp2.set_active(options.get('update_winapp2'))
-                self.cb_winapp2.set_sensitive(
-                    options.get('check_online_updates'))
-                self.cb_winapp2.connect(
-                    'toggled', self.__toggle_callback, 'update_winapp2')
-                updates_box.pack_start(self.cb_winapp2, False, True, 0)
-            vbox.pack_start(updates_box, False, True, 0)
 
         # TRANSLATORS: This means to hide cleaners which would do
         # nothing.  For example, if Firefox were never used on
@@ -182,14 +138,6 @@ class PreferencesDialog:
         cb_units_iec.set_active(options.get("units_iec"))
         cb_units_iec.connect('toggled', self.__toggle_callback, 'units_iec')
         vbox.pack_start(cb_units_iec, False, True, 0)
-
-        if 'nt' == os.name:
-            # Dark theme
-            cb_win10_theme = Gtk.CheckButton(_("Windows 10 theme"))
-            cb_win10_theme.set_active(options.get("win10_theme"))
-            cb_win10_theme.connect(
-                'toggled', self.__toggle_callback, 'win10_theme')
-            vbox.pack_start(cb_win10_theme, False, True, 0)
 
         # Dark theme
         self.cb_dark_mode = Gtk.CheckButton(label=_("Dark mode"))

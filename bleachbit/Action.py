@@ -162,11 +162,6 @@ class FileActionProvider(ActionProvider):
         # expand special $$foo$$ which may give multiple values
         for path2 in expand_multi_var(raw_path, path_vars):
             path3 = os.path.expanduser(os.path.expandvars(path2))
-            if os.name == 'nt' and path3:
-                # convert forward slash to backslash for compatibility with getsize()
-                # and for display.  Do not convert an empty path, or it will become
-                # the current directory (.).
-                path3 = os.path.normpath(path3)
             self.paths.append(path3)
 
     def get_deep_scan(self):
@@ -600,33 +595,6 @@ class Truncate(FileActionProvider):
     def get_commands(self):
         for path in self.get_paths():
             yield Command.Truncate(path)
-
-
-class WinShellChangeNotify(ActionProvider):
-
-    """Action to clean the Windows Registry"""
-    action_key = 'win.shell.change.notify'
-
-    def get_commands(self):
-        from bleachbit import Windows
-        yield Command.Function(
-            None,
-            Windows.shell_change_notify,
-            None)
-
-
-class Winreg(ActionProvider):
-
-    """Action to clean the Windows Registry"""
-    action_key = 'winreg'
-
-    def __init__(self, action_element, path_vars=None):
-        ActionProvider.__init__(self, action_element, path_vars)
-        self.keyname = action_element.getAttribute('path')
-        self.name = action_element.getAttribute('name')
-
-    def get_commands(self):
-        yield Command.Winreg(self.keyname, self.name)
 
 
 class YumCleanAll(ActionProvider):

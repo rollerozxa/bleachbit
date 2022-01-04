@@ -26,15 +26,14 @@ build:
 	echo Nothing to build
 
 clean:
-	@rm -vf {.,bleachbit,tests,windows}/*{pyc,pyo,~}
+	@rm -vf {.,bleachbit,tests}/*{pyc,pyo,~}
 	@rm -vrf build dist # created by py2exe
-	@rm -rf BleachBit-Portable # created by windows/setup_py2exe.bat
+	@rm -rf BleachBit-Portable
 	@rm -rf BleachBit-*-portable.zip
 	@rm -vf MANIFEST # created by setup.py
 	make -C po clean
 	@rm -vrf locale
 	@rm -vrf {*/,./}*.{pychecker,pylint,pyflakes}.log
-	@rm -vrf windows/BleachBit-*-setup*.{exe,zip}
 	@rm -vrf htmlcov .coverage # code coverage reports
 
 install:
@@ -90,13 +89,6 @@ lint:
 		( [ -x "$$(command -v pylint)" ] && pylint "$$f" > "$$f".pylint.log ); \
 	done; \
 	exit 0
-
-delete_windows_files:
-	# This is used for building .deb and .rpm packages.
-	# Remove Windows-specific cleaners.
-	awk '/os=\"windows/ && /id=\"/ {print FILENAME}' cleaners/*.xml | xargs rm -f
-	# Remove Windows-specific modules.
-	rm -f bleachbit/{Winapp,Windows*}.py
 
 downgrade_desktop:
 #	This will downgrade the version of the .desktop file for older Linux distributions.

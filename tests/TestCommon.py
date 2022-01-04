@@ -40,8 +40,7 @@ class CommonTestCase(common.BleachbitTestCase):
         """Test for important environment variables"""
         # useful for researching
         # grep -Poh "([\\$%]\w+)" cleaners/*xml | cut -b2- | sort | uniq -i
-        envs = {'posix': ['XDG_DATA_HOME', 'XDG_CONFIG_HOME', 'XDG_CACHE_HOME', 'HOME'],
-                'nt': ['AppData', 'CommonAppData', 'Documents', 'ProgramFiles', 'UserProfile', 'WinDir']}
+        envs = {'posix': ['XDG_DATA_HOME', 'XDG_CONFIG_HOME', 'XDG_CACHE_HOME', 'HOME']}
         for env in envs[os.name]:
             e = os.getenv(env)
             self.assertIsNotNone(e)
@@ -56,7 +55,7 @@ class CommonTestCase(common.BleachbitTestCase):
         self.assertEqual(os.path.expanduser(''), '')
 
         # An absolute path should not be altered.
-        abs_dirs = {'posix': '$HOME', 'nt': '%USERPROFILE%'}
+        abs_dirs = {'posix': '$HOME'}
         abs_dir = os.path.expandvars(abs_dirs[os.name])
         self.assertExists(abs_dir)
         self.assertEqual(os.path.expanduser(abs_dir), abs_dir)

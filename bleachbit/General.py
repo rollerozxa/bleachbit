@@ -54,12 +54,6 @@ def getText(nodelist):
 #
 # General
 #
-class WindowsError(Exception):
-
-    """Dummy class for non-Windows systems"""
-
-    def __str__(self):
-        return 'this is a dummy class for non-Windows systems'
 
 
 def chownself(path):
@@ -125,15 +119,6 @@ def run_external(args, stdout=None, env=None, clean_env=True):
         stdout = subprocess.PIPE
     kwargs = {}
     encoding = bleachbit.stdout_encoding
-    if sys.platform == 'win32':
-        # hide the 'DOS box' window
-        import win32process
-        import win32con
-        stui = subprocess.STARTUPINFO()
-        stui.dwFlags = win32process.STARTF_USESHOWWINDOW
-        stui.wShowWindow = win32con.SW_HIDE
-        kwargs['startupinfo'] = stui
-        encoding='mbcs'
     if not env and clean_env and 'posix' == os.name:
         # Clean environment variables so that that subprocesses use English
         # instead of translated text. This helps when checking for certain

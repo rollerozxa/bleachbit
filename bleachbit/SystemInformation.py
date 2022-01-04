@@ -30,9 +30,6 @@ import os
 import platform
 import sys
 
-if 'nt' == os.name:
-    from win32com.shell import shell
-
 
 def get_system_information():
     """Return system information as a string"""
@@ -75,9 +72,7 @@ def get_system_information():
     s += "\nlocale.getdefaultlocale = %s" % str(locale.getdefaultlocale())
     if 'posix' == os.name:
         envs = ('DESKTOP_SESSION', 'LOGNAME', 'USER', 'SUDO_UID')
-    elif 'nt' == os.name:
-        envs = ('APPDATA', 'cd', 'LocalAppData', 'LocalAppDataLow', 'Music',
-                'USERPROFILE', 'ProgramFiles', 'ProgramW6432', 'TMP')
+
     for env in envs:
         s += "\nos.getenv('%s') = %s" % (env, os.getenv(env))
     s += "\nos.path.expanduser('~') = %s" % os.path.expanduser('~')
@@ -97,16 +92,11 @@ def get_system_information():
         else:
             s += "\nplatform.dist() = %s" % str(platform.linux_distribution(full_distribution_name=0))
 
-    if 'nt' == os.name:
-        s += "\nplatform.win32_ver[1]() = %s" % platform.win32_ver()[1]
     s += "\nplatform.platform = %s" % platform.platform()
     s += "\nplatform.version = %s" % platform.version()
     s += "\nsys.argv = %s" % sys.argv
     s += "\nsys.executable = %s" % sys.executable
     s += "\nsys.version = %s" % sys.version
-    if 'nt' == os.name:
-        s += "\nwin32com.shell.shell.IsUserAnAdmin() = %s" % shell.IsUserAnAdmin(
-        )
     s += "\n__file__ = %s" % __file__
 
     return s

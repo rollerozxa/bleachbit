@@ -24,7 +24,7 @@ GTK graphical user interface
 
 from bleachbit import GuiBasic
 from bleachbit import Cleaner, FileUtilities
-from bleachbit import _, APP_NAME, appicon_path, portable_mode, windows10_theme_path
+from bleachbit import _, APP_NAME, appicon_path, portable_mode
 from bleachbit.Options import options
 from bleachbit.GuiPreferences import PreferencesDialog
 from bleachbit.Cleaner import backends, register_cleaners
@@ -41,9 +41,6 @@ import time
 import gi
 gi.require_version('Gtk', '3.0')
 
-
-if os.name == 'nt':
-    from bleachbit import Windows
 
 logger = logging.getLogger(__name__)
 
@@ -69,43 +66,8 @@ def notify_gi(msg):
         notify.show()
         notify.set_timeout(10000)
 
-
-def notify_plyer(msg):
-    """Show a pop-up notification.
-
-    Linux distributions do not include plyer, so this is just for Windows.
-    """
-    from bleachbit import bleachbit_exe_path
-
-    # On Windows 10,  PNG does not work.
-    __icon_fns = (
-        os.path.normpath(os.path.join(bleachbit_exe_path,
-                                      'share\\bleachbit.ico')),
-        os.path.normpath(os.path.join(bleachbit_exe_path,
-                                      'windows\\bleachbit.ico')))
-
-    icon_fn = None
-    for __icon_fn in __icon_fns:
-        if os.path.exists(__icon_fn):
-            icon_fn = __icon_fn
-            break
-
-    from plyer import notification
-    notification.notify(
-        title=APP_NAME,
-        message=msg,
-        app_name=APP_NAME,  # not shown on Windows 10
-        app_icon=icon_fn,
-    )
-
-
 def notify(msg):
     """Show a popup-notification"""
-    import importlib
-    if importlib.util.find_spec('plyer'):
-        # On Windows, use Plyer.
-        notify_plyer(msg)
-        return
     # On Linux, use GTK Notify.
     notify_gi(msg)
 
@@ -117,7 +79,7 @@ class Bleachbit(Gtk.Application):
 
     def __init__(self, uac=True, shred_paths=None, auto_exit=False):
 
-        application_id_suffix = self._init_windows_misc(auto_exit, shred_paths, uac)
+        application_id_suffix = ''
         application_id = '{}{}'.format('org.gnome.Bleachbit', application_id_suffix)
         Gtk.Application.__init__(
             self, application_id=application_id, flags=Gio.ApplicationFlags.FLAGS_NONE)
@@ -130,36 +92,6 @@ class Bleachbit(Gtk.Application):
 
         if shred_paths:
             self._shred_paths = shred_paths
-
-        if os.name == 'nt':
-            # clean up nonce files https://github.com/bleachbit/bleachbit/issues/858
-            import atexit
-            atexit.register(Windows.cleanup_nonce)
-
-            # BitDefender false positive.  BitDefender didn't mark BleachBit as infected or show
-            # anything in its log, but sqlite would fail to import unless BitDefender was in "game mode."
-            # https://www.bleachbit.org/forum/074-fails-errors
-            try:
-                import sqlite3
-            except ImportError:
-                logger.exception(
-                    _("Error loading the SQLite module: the antivirus software may be blocking it."))
-
-    def _init_windows_misc(self, auto_exit, shred_paths, uac):
-        application_id_suffix = ''
-        is_context_menu_executed = auto_exit and shred_paths
-        if os.name == 'nt':
-            if Windows.elevate_privileges(uac):
-                # privileges escalated in other process
-                sys.exit(0)
-
-            if is_context_menu_executed:
-                # When we have a running application and executing the Windows
-                # context menu command we start a new process with new application_id.
-                # That is because the command line arguments of the context menu command
-                # are not passed to the already running instance.
-                application_id_suffix = 'ContextMenuShred'
-        return application_id_suffix
 
     def build_app_menu(self):
         """Build the application menu
@@ -235,10 +167,6 @@ class Bleachbit(Gtk.Application):
             shred_uris = clipboard.wait_for_contents(
                 Gdk.atom_intern_static_string('text/uri-list')).get_uris()
             shred_paths = FileUtilities.uris_to_paths(shred_uris)
-        elif Gdk.atom_intern_static_string('FileNameW') in targets:
-            # Windows
-            # Use non-GTK+ functions because because GTK+ 2 does not work.
-            shred_paths = Windows.get_clipboard_paths()
         if shred_paths:
             GUI.shred_paths(self._window, shred_paths)
         else:
@@ -248,16 +176,7 @@ class Bleachbit(Gtk.Application):
         """Shred settings (for privacy reasons) and quit"""
         # build a list of paths to delete
         paths = []
-        if os.name == 'nt' and portable_mode:
-            # in portable mode on Windows, the options directory includes
-            # executables
-            paths.append(bleachbit.options_file)
-            if os.path.isdir(bleachbit.personal_cleaners_dir):
-                paths.append(bleachbit.personal_cleaners_dir)
-            for f in glob.glob(os.path.join(bleachbit.options_dir, "*.bz2")):
-                paths.append(f)
-        else:
-            paths.append(bleachbit.options_dir)
+        paths.append(bleachbit.options_dir)
 
         # prompt the user to confirm
         if not GUI.shred_paths(self._window, paths, shred_settings=True):
@@ -576,7 +495,6 @@ class GUI(Gtk.ApplicationWindow):
             # if stderr was redirected - keep redirecting it
             sys.stderr = self.gtklog
 
-        self.set_windows10_theme()
         Gtk.Settings.get_default().set_property(
             'gtk-application-prefer-dark-theme', options.get('dark_mode'))
 
@@ -588,17 +506,7 @@ class GUI(Gtk.ApplicationWindow):
         GLib.idle_add(self.cb_refresh_operations)
 
     def _show_splash_screen(self):
-        if os.name != 'nt':
-            return
-
-        font_conf_file = Windows.get_font_conf_file()
-        if not os.path.exists(font_conf_file):
-            logger.error('No fonts.conf file')
-            return
-
-        has_cache = Windows.has_fontconfig_cache(font_conf_file)
-        if not has_cache:
-            Windows.splash_thread.start()
+        return
 
     def _confirm_delete(self, mention_preview, shred_settings=False):
         if options.get("delete_confirmation"):
@@ -608,8 +516,7 @@ class GUI(Gtk.ApplicationWindow):
     def get_preferences_dialog(self):
         return PreferencesDialog(
             self,
-            self.cb_refresh_operations,
-            self.set_windows10_theme)
+            self.cb_refresh_operations)
 
     def shred_paths(self, paths, shred_settings=False):
         """Shred file or folders
@@ -823,14 +730,6 @@ class GUI(Gtk.ApplicationWindow):
         # expand tree view
         self.view.expand_all()
 
-        # Check for online updates.
-        if not self._auto_exit and \
-            bleachbit.online_update_notification_enabled and \
-            options.get("check_online_updates") and \
-                not hasattr(self, 'checked_for_updates'):
-            self.checked_for_updates = True
-            self.check_online_updates()
-
         # Show information for first start.
         # (The first start flag is set also for each new version.)
         if options.get("first_start") and not self._auto_exit:
@@ -839,31 +738,13 @@ class GUI(Gtk.ApplicationWindow):
                     _('Access the application menu by clicking the hamburger icon on the title bar.'))
                 pref = self.get_preferences_dialog()
                 pref.run()
-            elif os.name == 'nt':
-                self.append_text(
-                    _('Access the application menu by clicking the logo on the title bar.'))
-            options.set('first_start', False)
 
-        if os.name == 'nt':
-            # BitDefender false positive.  BitDefender didn't mark BleachBit as infected or show
-            # anything in its log, but sqlite would fail to import unless BitDefender was in "game mode."
-            # http://bleachbit.sourceforge.net/forum/074-fails-errors
-            try:
-                import sqlite3
-            except ImportError as e:
-                self.append_text(
-                    _("Error loading the SQLite module: the antivirus software may be blocking it."), 'error')
+            options.set('first_start', False)
 
         # Show notice about admin privileges.
         if os.name == 'posix' and os.path.expanduser('~') == '/root':
             self.append_text(
                 _('You are running BleachBit with administrative privileges for cleaning shared parts of the system, and references to the user profile folder will clean only the root account.')+'\n')
-        if os.name == 'nt' and options.get('shred'):
-            from win32com.shell.shell import IsUserAnAdmin
-            if not IsUserAnAdmin():
-                self.append_text(
-                    _('Run BleachBit with administrator privileges to improve the accuracy of overwriting the contents of files.'))
-                self.append_text('\n')
 
         # remove from idle loop (see GObject.idle_add)
         return False
@@ -994,10 +875,7 @@ class GUI(Gtk.ApplicationWindow):
         box = Gtk.Box()
         Gtk.StyleContext.add_class(box.get_style_context(), "linked")
 
-        if os.name == 'nt':
-            icon_size = Gtk.IconSize.BUTTON
-        else:
-            icon_size = Gtk.IconSize.LARGE_TOOLBAR
+        icon_size = Gtk.IconSize.LARGE_TOOLBAR
 
         # create the preview button
         self.preview_button = Gtk.Button.new_from_icon_name(
@@ -1039,10 +917,6 @@ class GUI(Gtk.ApplicationWindow):
         hbar.pack_start(box)
 
         # Add hamburger menu on the right.
-        # This is not needed for Microsoft Windows because other code places its
-        # menu on the left side.
-        if os.name == 'nt':
-            return hbar
         menu_button = Gtk.MenuButton()
         icon = Gio.ThemedIcon(name="open-menu-symbolic")
         image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.BUTTON)
@@ -1059,18 +933,6 @@ class GUI(Gtk.ApplicationWindow):
         (width, height) = self.get_size()
 
         # fixup maximized window position:
-        # on Windows if a window is maximized on a secondary monitor it is moved off the screen
-        if 'nt' == os.name:
-            window = self.get_window()
-            if window.get_state() & Gdk.WindowState.MAXIMIZED != 0:
-                screen = self.get_screen()
-                monitor_num = screen.get_monitor_at_window(window)
-                g = screen.get_monitor_geometry(monitor_num)
-                if x < g.x or x >= g.x + g.width or y < g.y or y >= g.y + g.height:
-                    logger.debug("Maximized window {}+{}: monitor ({}) geometry = {}+{}".format(
-                        (x, y), (width, height), monitor_num, (g.x, g.y), (g.width, g.height)))
-                    self.move(g.x, g.y)
-                    return True
 
         # save window position and size
         options.set("window_x", x, commit=False)
@@ -1093,10 +955,6 @@ class GUI(Gtk.ApplicationWindow):
         return False
 
     def on_show(self, widget):
-
-        if 'nt' == os.name and Windows.splash_thread.is_alive():
-            Windows.splash_thread.join(0)
-
         # restore window position, size and state
         if not options.get('remember_geometry'):
             return
@@ -1123,34 +981,6 @@ class GUI(Gtk.ApplicationWindow):
             self.fullscreen()
         elif options.get("window_maximized"):
             self.maximize()
-
-    def set_windows10_theme(self):
-        """Toggle the Windows 10 theme"""
-        if not 'nt' == os.name:
-            return
-
-        if not self._style_provider_regular:
-            self._style_provider_regular = Gtk.CssProvider()
-            self._style_provider_regular.load_from_path(
-                os.path.join(windows10_theme_path, 'gtk.css'))
-        if not self._style_provider_dark:
-            self._style_provider_dark = Gtk.CssProvider()
-            self._style_provider_dark.load_from_path(
-                os.path.join(windows10_theme_path, 'gtk-dark.css'))
-
-        screen = Gdk.Display.get_default_screen(Gdk.Display.get_default())
-        if self._style_provider is not None:
-            Gtk.StyleContext.remove_provider_for_screen(
-                screen, self._style_provider)
-        if options.get("win10_theme"):
-            if options.get("dark_mode"):
-                self._style_provider = self._style_provider_dark
-            else:
-                self._style_provider = self._style_provider_regular
-            Gtk.StyleContext.add_provider_for_screen(
-                screen, self._style_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-        else:
-            self._style_provider = None
 
     def populate_window(self):
         """Create the main application window"""
@@ -1228,18 +1058,3 @@ class GUI(Gtk.ApplicationWindow):
         # done
         self.show_all()
         self.progressbar.hide()
-
-    @threaded
-    def check_online_updates(self):
-        """Check for software updates in background"""
-        from bleachbit import Update
-        try:
-            updates = Update.check_updates(options.get('check_beta'),
-                                           options.get('update_winapp2'),
-                                           self.append_text,
-                                           lambda: GLib.idle_add(self.cb_refresh_operations))
-            if updates:
-                GLib.idle_add(
-                    lambda: Update.update_dialog(self, updates))
-        except Exception:
-            logger.exception(_("Error when checking for updates: "))

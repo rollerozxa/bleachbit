@@ -77,20 +77,17 @@ class GeneralTestCase(common.BleachbitTestCase):
 
     def test_run_external(self):
         """Unit test for run_external"""
-        args = {'nt': ['cmd.exe', '/c', 'dir', '%windir%\system32', '/s', '/b'],
-                'posix': ['find', '/usr/bin']}
+        args = {'posix': ['find', '/usr/bin']}
         (rc, stdout, stderr) = run_external(args[os.name])
         self.assertEqual(0, rc)
         self.assertEqual(0, len(stderr))
 
         self.assertRaises(OSError, run_external, ['cmddoesnotexist'])
 
-        args = {'nt': ['cmd.exe', '/c', 'dir', 'c:\doesnotexist'],
-                'posix': ['ls', '/doesnotexist']}
+        args = {'posix': ['ls', '/doesnotexist']}
         (rc, stdout, stderr) = run_external(args[os.name])
         self.assertNotEqual(0, rc)
 
-    @common.skipIfWindows
     def test_run_external_clean_env(self):
         """Unit test for clean_env parameter to run_external()"""
 
@@ -147,7 +144,6 @@ class GeneralTestCase(common.BleachbitTestCase):
         common.put_env('LANG', lang_old)
         self.assertEqual(old_environ, copy.deepcopy(os.environ))
 
-    @common.skipIfWindows
     def test_sudo_mode(self):
         """Unit test for sudo_mode"""
         self.assertIsInstance(sudo_mode(), bool)

@@ -13,15 +13,6 @@ po/*.mo
 po/*.pot
 locale/
 
-# Windows build
-build/
-dist/
-BleachBit-Portable/
-BleachBit-*-portable.zip
-upx/
-windows/BleachBit*.exe
-windows/BleachBit*.zip
-
 # editor backups and temporary files
 *~
 *.bak

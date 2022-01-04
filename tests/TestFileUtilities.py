@@ -293,11 +293,6 @@ class FileUtilitiesTestCase(common.BleachbitTestCase):
             self.assertNotExists(dirname)
 
         def symlink_helper(link_fn):
-            if 'nt' == os.name:
-                from win32com.shell import shell
-                if not shell.IsUserAnAdmin():
-                    self.skipTest(
-                        'skipping symlink test because of insufficient privileges')
 
             # make regular file
             srcname = self.mkstemp(prefix='bleachbit-test-delete-regular')
@@ -338,22 +333,6 @@ class FileUtilitiesTestCase(common.BleachbitTestCase):
             self.assertNotExists(linkname)
             self.assertNotLExists(linkname)
 
-        if 'nt' == os.name:
-            logger.debug('testing symbolic link')
-            import ctypes
-            kern = ctypes.windll.LoadLibrary("kernel32.dll")
-
-            def win_symlink(src, linkname):
-                rc = kern.CreateSymbolicLinkW(linkname, src, 0)
-                if rc == 0:
-                    print('CreateSymbolicLinkW(%s, %s)' % (linkname, src))
-                    print('CreateSymolicLinkW() failed, error = %s' %
-                          ctypes.FormatError())
-                    self.assertNotEqual(rc, 0)
-            symlink_helper(win_symlink)
-            
-            return
-
         # below this point, only posix
 
         # test file with mode 0444/-r--r--r--
@@ -390,65 +369,6 @@ class FileUtilitiesTestCase(common.BleachbitTestCase):
             delete(fn, shred=shred)
             self.assertNotExists(fn)
 
-    @common.skipUnlessWindows
-    def test_delete_hidden(self):
-        """Unit test for delete() with hidden file"""
-        for shred in (False, True):
-            fn = os.path.join(self.tempdir, 'hidden')
-            common.touch_file(fn)
-            import win32api
-            import win32con
-            win32api.SetFileAttributes(fn, win32con.FILE_ATTRIBUTE_HIDDEN)
-            self.assertExists(fn)
-            delete(fn, shred=shred)
-            self.assertNotExists(fn)
-
-    @common.skipUnlessWindows
-    def test_delete_locked(self):
-        """Unit test for delete() with locked file"""
-        # set up
-        def test_delete_locked_setup():
-            (fd, filename) = tempfile.mkstemp(prefix='bleachbit-test-worker')
-            os.write(fd, b'123')
-            os.close(fd)
-            self.assertExists(filename)
-            self.assertEqual(3, getsize(filename))
-            return filename
-
-        # File is open but not opened exclusive, so expect that the
-        # file is truncated but not deleted.
-        # O_EXCL = fail if file exists (i.e., not an exclusive lock)
-        filename = test_delete_locked_setup()
-        f = os.open(filename, os.O_WRONLY | os.O_EXCL)
-        self.assertExists(filename)
-        self.assertEqual(3, getsize(filename))
-        with self.assertRaises(WindowsError):
-            delete(filename)
-        os.close(f)
-        self.assertExists(filename)
-        self.assertEqual(0, getsize(filename))
-        delete(filename)
-        self.assertNotExists(filename)
-
-        # File is open with exclusive lock, so expect the file is neither
-        # deleted nor truncated.
-        for allow_shred in (False, True):
-            filename = test_delete_locked_setup()
-            self.assertEqual(3, getsize(filename))
-            fd = os.open(filename, os.O_APPEND | os.O_EXCL)
-            self.assertExists(filename)
-            self.assertEqual(3, getsize(filename))
-            with self.assertRaises(WindowsError):
-                delete(filename, shred=allow_shred, allow_shred=allow_shred)
-            os.close(fd)
-            self.assertExists(filename)
-            if not allow_shred:
-                # A shredding attempt truncates the file.
-                self.assertEqual(3, getsize(filename))
-            delete(filename)
-            self.assertNotExists(filename)
-
-    @common.skipIfWindows
     def test_delete_mount_point(self):
         """Unit test for deleting a mount point in use"""
         if not common.have_root():
@@ -482,7 +402,6 @@ class FileUtilitiesTestCase(common.BleachbitTestCase):
             det = detect_encoding(temp.name)
             self.assertEqual(det, expected_encoding)
 
-    @common.skipIfWindows
     def test_ego_owner(self):
         """Unit test for ego_owner()"""
         self.assertEqual(ego_owner('/bin/ls'), os.getuid() == 0)
@@ -490,8 +409,6 @@ class FileUtilitiesTestCase(common.BleachbitTestCase):
     def test_exists_in_path(self):
         """Unit test for exists_in_path()"""
         filename = 'ls'
-        if 'nt' == os.name:
-            filename = 'cmd.exe'
         self.assertTrue(exists_in_path(filename))
 
     def test_exe_exists(self):
@@ -500,11 +417,6 @@ class FileUtilitiesTestCase(common.BleachbitTestCase):
                  ("sh", True),
                  ("doesnotexist", False),
                  ("/bin/doesnotexist", False)]
-        if 'nt' == os.name:
-            tests = [('c:\\windows\\system32\\cmd.exe', True),
-                     ('cmd.exe', True),
-                     ('doesnotexist', False),
-                     ('c:\\windows\\doesnotexist.exe', False)]
         for test in tests:
             self.assertEqual(exe_exists(test[0]), test[1])
 
@@ -512,33 +424,11 @@ class FileUtilitiesTestCase(common.BleachbitTestCase):
         """Unit test for expand_glob_join()"""
         if 'posix' == os.name:
             expand_glob_join('/bin', '*sh')
-        if 'nt' == os.name:
-            expand_glob_join('c:\windows', '*.exe')
 
     def test_expandvars(self):
         """Unit test for expandvars()."""
         expanded = os.path.expandvars('$HOME')
         self.assertIsString(expanded)
-
-    def test_extended_path(self):
-        """Unit test for extended_path() and extended_path_undo()"""
-        if 'nt' == os.name:
-            tests = [
-                (r'c:\windows\notepad.exe', r'\\?\c:\windows\notepad.exe'),
-                (r'\\server\share\windows\notepad.exe',
-                 r'\\?\unc\server\share\windows\notepad.exe'),
-            ]
-        else:
-            # unchanged
-            tests = (('/home/foo', '/home/foo'),)
-        for short, extended in tests:
-            # already extended path shouldn't be changed
-            self.assertEqual(extended_path(extended), extended)
-            # does the conversion work both ways?
-            self.assertEqual(extended_path(short), extended)
-            self.assertEqual(extended_path_undo(extended), short)
-            # unextended paths shouldn't be shortened any more
-            self.assertEqual(extended_path_undo(short), short)
 
     def test_free_space(self):
         """Unit test for free_space()"""
@@ -548,25 +438,6 @@ class FileUtilitiesTestCase(common.BleachbitTestCase):
         self.assertGreater(result, -1)
         self.assertIsInteger(result)
 
-        # compare to WMIC
-        if 'nt' != os.name:
-            return
-        args = ['wmic',  'LogicalDisk', 'get', 'DeviceID,', 'FreeSpace']
-        (rc, stdout, stderr) = run_external(args)
-        if rc:
-            print('error calling WMIC\nargs=%s\nstderr=%s' % (args, stderr))
-            return
-        import re
-        for line in stdout.split('\n'):
-            line = line.strip()
-            if not re.match('([A-Z]):\s+(\d+)', line):
-                continue
-            drive, bytes_free = re.split('\s+', line)
-            print('Checking free space for %s' % drive)
-            bytes_free = int(bytes_free)
-            free = free_space(drive)
-            self.assertEqual(bytes_free, free)
-
     def test_getsize(self):
         """Unit test for method getsize()"""
         dirname = self.mkdtemp(prefix='bleachbit-test-getsize')
@@ -575,20 +446,6 @@ class FileUtilitiesTestCase(common.BleachbitTestCase):
             filename = self.write_file(os.path.join(
                 dirname, fname), b"abcdefghij" * 12345)
 
-            if 'nt' == os.name:
-                self.assertEqual(getsize(filename), 10 * 12345)
-                # Expand the directory names, which are in the short format,
-                # to test the case where the full path (including the directory)
-                # is longer than 255 characters.
-                import win32api
-                lname = win32api.GetLongPathNameW(extended_path(filename))
-                self.assertEqual(getsize(lname), 10 * 12345)
-                # this function returns a byte string instead of Unicode
-                counter = 0
-                for child in children_in_directory(dirname, False):
-                    self.assertEqual(getsize(child), 10 * 12345)
-                    counter += 1
-                self.assertEqual(counter, 1)
             if 'posix' == os.name:
                 encoding = sys.getdefaultencoding()
                 output = str(subprocess.Popen(
@@ -617,10 +474,6 @@ class FileUtilitiesTestCase(common.BleachbitTestCase):
         # delete the empty directory
         delete(dirname)
 
-        if 'nt' == os.name:
-            # the following tests do not apply to Windows
-            return
-
         # create a symlink
         filename = self.write_file(
             'bleachbit-test-symlink', b'abcdefghij' * 12345)
@@ -646,8 +499,6 @@ class FileUtilitiesTestCase(common.BleachbitTestCase):
     def test_getsizedir(self):
         """Unit test for getsizedir()"""
         path = '/bin'
-        if 'nt' == os.name:
-            path = 'c:\\windows\\system32'
         self.assertGreater(getsizedir(path), 0)
 
     def test_globex(self):
@@ -684,9 +535,6 @@ class FileUtilitiesTestCase(common.BleachbitTestCase):
         if 'posix' == os.name:
             dir1 = '/bin'
             dir2 = os.path.expanduser('/sbin')
-        elif 'nt' == os.name:
-            dir1 = os.path.expandvars(r'%windir%\fonts')
-            dir2 = os.path.expandvars(r'%windir%\logs')
         # If these directories do not exist, the test results are not valid.
         self.assertExists(dir1)
         self.assertExists(dir2)
@@ -713,13 +561,6 @@ class FileUtilitiesTestCase(common.BleachbitTestCase):
         self.assertTrue(same_partition(home, home))
         if 'posix' == os.name:
             self.assertFalse(same_partition(home, '/dev'))
-        elif 'nt' == os.name:
-            home_drive = os.path.splitdrive(home)[0]
-            from bleachbit.Windows import get_fixed_drives
-            for drive in get_fixed_drives():
-                this_drive = os.path.splitdrive(drive)[0]
-                self.assertEqual(same_partition(home, drive),
-                                 home_drive == this_drive)
 
     def test_uris_to_paths(self):
         """Unit test for uris_to_paths()"""
@@ -765,22 +606,6 @@ class FileUtilitiesTestCase(common.BleachbitTestCase):
         self.assertFalse(whitelisted('/home/fold'))
         self.assertFalse(whitelisted('/home/folder2'))
 
-        if 'nt' == os.name:
-            whitelist = [('folder', 'D:\\'), (
-                'file', 'c:\\windows\\foo.log'), ('folder', 'e:\\users')]
-            options.set_whitelist_paths(whitelist)
-            self.assertTrue(whitelisted('e:\\users'))
-            self.assertTrue(whitelisted('e:\\users\\'))
-            self.assertTrue(whitelisted('e:\\users\\foo.log'))
-            self.assertFalse(whitelisted('e:\\users2'))
-            # case insensitivity
-            self.assertTrue(whitelisted('C:\\WINDOWS\\FOO.LOG'))
-            self.assertTrue(whitelisted('D:\\USERS'))
-
-            # drives letters have the separator at the end while most paths
-            # don't
-            self.assertTrue(whitelisted('D:\\FOLDER\\FOO.LOG'))
-
         # test blank
         options.set_whitelist_paths([])
         self.assertFalse(whitelisted('/home/foo'))
@@ -797,7 +622,6 @@ class FileUtilitiesTestCase(common.BleachbitTestCase):
         self.assertEqual(
             set(old_whitelist), set(options.get_whitelist_paths()))
 
-    @common.skipIfWindows
     def test_whitelisted_posix_symlink(self):
         """Symlink test for whitelisted_posix()"""
         # setup
@@ -832,9 +656,6 @@ class FileUtilitiesTestCase(common.BleachbitTestCase):
         It is called frequently, so the speed is important."""
         d = '/usr/bin'
         whitelist = [('file', '/home/foo'), ('folder', '/home/folder')]
-        if 'nt' == os.name:
-            d = os.path.expandvars('%windir%\system32')
-            whitelist = [('file', r'c:\\filename'), ('folder', r'c:\\folder')]
         reps = 20
         paths = [p for p in children_in_directory(d, True)]
         paths = paths[:1000]  # truncate
@@ -897,14 +718,8 @@ class FileUtilitiesTestCase(common.BleachbitTestCase):
         self.wipe_name_helper(filename)
 
         # create file with short name in temporary directory with long name
-        if 'nt' == os.name:
-            # In Windows, the maximum path length is 260 characters
-            # http://msdn.microsoft.com/en-us/library/aa365247%28VS.85%29.aspx#maxpath
-            dir0len = 100
-            dir1len = 5
-        else:
-            dir0len = 210
-            dir1len = 210
+        dir0len = 210
+        dir1len = 210
         filelen = 10
 
         dir0 = self.mkdtemp(prefix="0" * dir0len)
@@ -970,7 +785,6 @@ class FileUtilitiesTestCase(common.BleachbitTestCase):
 
         delete(path)
 
-    @common.skipIfWindows
     def test_OpenFiles(self):
         """Unit test for class OpenFiles"""
 

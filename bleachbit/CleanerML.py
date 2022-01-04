@@ -40,17 +40,8 @@ logger = logging.getLogger(__name__)
 def default_vars():
     """Return default multi-value variables"""
     ret = {}
-    if not os.name == 'nt':
-        return ret
-    # Expand ProgramFiles to also be ProgramW6432, etc.
-    wowvars = (('ProgramFiles', 'ProgramW6432'),
-               ('CommonProgramFiles', 'CommonProgramW6432'))
-    for v1, v2 in wowvars:
-        # Remove None, if variable is not found.
-        # Make list unique.
-        mylist = list({x for x in (os.getenv(v1), os.getenv(v2)) if x})
-        ret[v1] = mylist
     return ret
+
 
 
 class CleanerML:

@@ -220,9 +220,6 @@ class WorkerTestCase(common.BleachbitTestCase):
         if 'posix' == os.name:
             self.assertEqual(worker.total_bytes, bytes_expected_posix)
             self.assertEqual(worker.total_deleted, count_deleted_posix)
-        elif 'nt' == os.name:
-            self.assertEqual(worker.total_bytes, bytes_expected_nt)
-            self.assertEqual(worker.total_deleted, count_deleted_nt)
 
     def test_AccessDenied(self):
         """Test Worker using Action.AccessDeniedAction"""
@@ -248,24 +245,6 @@ class WorkerTestCase(common.BleachbitTestCase):
     def test_InvalidEncoding(self):
         """Test Worker using Action.InvalidEncodingAction"""
         self.action_test_helper('invalid.encoding', 0, 0, 4096, 2, 3, 2)
-
-    @common.skipUnlessWindows
-    def test_Locked(self):
-        """Test Worker using Action.LockedAction"""
-        from win32com.shell import shell
-        if shell.IsUserAnAdmin():
-            # If an admin, the first attempt will mark for delete (3 bytes),
-            # and the second attempt will actually delete it (3 bytes).
-            errors_expected = 0
-            bytes_expected = 3 + 3
-            total_deleted = 2
-        else:
-            # If not an admin, the first attempt will fail, and the second wil succeed.
-            errors_expected = 1
-            bytes_expected = 3
-            total_deleted = 1
-        self.action_test_helper(
-            'locked', 0, errors_expected, None, None, bytes_expected, total_deleted)
 
     def test_RuntimeError(self):
         """Test Worker using Action.RuntimeErrorAction

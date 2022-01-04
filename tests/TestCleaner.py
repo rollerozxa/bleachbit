@@ -63,13 +63,7 @@ class CleanerTestCase(common.BleachbitTestCase):
     def test_add_action(self):
         """Unit test for Cleaner.add_action()"""
         self.actions = []
-        if 'nt' == os.name:
-            self.actions += [
-                '<action command="delete" search="file" path="$WINDIR\\explorer.exe"/>',
-                '<action command="delete" search="glob" path="$WINDIR\\system32\\*.dll"/>',
-                '<action command="delete" search="walk.files" path="$WINDIR\\system32\\"/>',
-                '<action command="delete" search="walk.all" path="$WINDIR\\system32\\"/>']
-        elif 'posix' == os.name:
+        if 'posix' == os.name:
             print(__file__)
             self.actions += [
                 '<action command="delete" search="file" path="%s"/>' % __file__,
@@ -155,8 +149,6 @@ class CleanerTestCase(common.BleachbitTestCase):
                             break
                         common.validate_result(self, result)
         # make sure trash and tmp don't return the same results
-        if 'nt' == os.name:
-            return
 
         def get_files(option_id):
             ret = []
@@ -200,7 +192,6 @@ class CleanerTestCase(common.BleachbitTestCase):
         list(register_cleaners())
         list(register_cleaners())
 
-    @common.skipIfWindows # FIXME later: reevaluate
     @common.skipUnlessDestructive
     def test_system_recent_documents(self):
         """Clean recent documents in GTK"""
@@ -223,7 +214,6 @@ class CleanerTestCase(common.BleachbitTestCase):
 
         self.assertEqual(len(mgr.get_items()), 0)
 
-    @common.skipIfWindows
     def test_whitelist(self):
         tests = [
             ('/tmp/.truecrypt_aux_mnt1/control', True),

@@ -160,10 +160,7 @@ def process_cmd_line():
     parser.add_option('--exit', action='store_true',
                       help=optparse.SUPPRESS_HELP)
 
-    if 'nt' == os.name:
-        uac_help = _("do not prompt for administrator privileges")
-    else:
-        uac_help = optparse.SUPPRESS_HELP
+    uac_help = optparse.SUPPRESS_HELP
     parser.add_option("--no-uac", action="store_true", help=uac_help)
     parser.add_option("-p", "--preview", action="store_true",
                       help=_("preview files to be deleted and other changes"))
@@ -173,9 +170,7 @@ def process_cmd_line():
                       help=_("use options set in the graphical interface"))
     parser.add_option("--all-but-warning", action="store_true",
                       help=_("enable all options that do not have a warning"))
-    if 'nt' == os.name:
-        parser.add_option("--update-winapp2", action="store_true",
-                          help=_("update winapp2.ini, if a new version is available"))
+
     parser.add_option("-w", "--wipe-free-space", action="store_true",
                       help=_("wipe free space in the given paths"))
     parser.add_option("-v", "--version", action="store_true",
@@ -214,14 +209,6 @@ License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.""" % APP_VERSION)
         sys.exit(0)
-    if 'nt' == os.name and options.update_winapp2:
-        from bleachbit import Update
-        logger.info(_("Checking online for updates to winapp2.ini"))
-        Update.check_updates(False, True,
-                             lambda x: sys.stdout.write("%s\n" % x),
-                             lambda: None)
-        # updates can be combined with --list-cleaners, --preview, --clean
-        did_something = True
     if options.list_cleaners:
         list_cleaners()
         sys.exit(0)

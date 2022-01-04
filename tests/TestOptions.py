@@ -35,15 +35,15 @@ class OptionsTestCase(common.BleachbitTestCase):
     def test_Options(self):
         """Unit test for class Options"""
         o = bleachbit.Options.options
-        value = o.get("check_online_updates")
+        value = o.get("dark_mode")
 
         # toggle a boolean
-        o.toggle('check_online_updates')
-        self.assertEqual(not value, o.get("check_online_updates"))
+        o.toggle('dark_mode')
+        self.assertEqual(not value, o.get("dark_mode"))
 
         # restore original boolean
-        o.set("check_online_updates", value)
-        self.assertEqual(value, o.get("check_online_updates"))
+        o.set("dark_mode", value)
+        self.assertEqual(value, o.get("dark_mode"))
 
         # test auto commit
         shred = o.get("shred")
@@ -138,9 +138,6 @@ class OptionsTestCase(common.BleachbitTestCase):
         myhash = '0ABCD'
         o1.set_hashpath(pathname, myhash)
         self.assertEqual(myhash, o1.get_hashpath(pathname))
-        if 'nt' == os.name:
-            # check case sensitivity
-            self.assertEqual(myhash, o1.get_hashpath(pathname.upper()))
         del o1
 
         # reopen

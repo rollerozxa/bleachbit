@@ -92,7 +92,7 @@ class ActionTestCase(common.BleachbitTestCase):
 
     """Test cases for Action"""
 
-    _TEST_PROCESS_CMDS = {'nt': 'cmd.exe /c dir', 'posix': 'dir'}
+    _TEST_PROCESS_CMDS = {'posix': 'dir'}
     _TEST_PROCESS_SIMPLE = '<action command="process" cmd="%s" />'
 
     def _test_action_str(self, action_str, expect_exists=True):
@@ -139,13 +139,7 @@ class ActionTestCase(common.BleachbitTestCase):
     def test_delete(self):
         """Unit test for class Delete"""
         paths = ['~']
-        if 'nt' == os.name:
-            # Python 2.6 and later supports %foo%
-            paths.append('%USERPROFILE%')
-            # Python 2.5 and later supports $foo
-            paths.append('${USERPROFILE}')
-            paths.append('$USERPROFILE')
-        elif 'posix' == os.name:
+        if 'posix' == os.name:
             paths.append('$HOME')
         for path in paths:
             for mode in ('delete', 'truncate', 'delete_forward'):
@@ -154,14 +148,9 @@ class ActionTestCase(common.BleachbitTestCase):
                     dir=expanded, prefix='bleachbit-action-delete')
                 command = mode
                 if 'delete_forward' == mode:
-                    # forward slash needs to be normalized on Windows
-                    if 'nt' == os.name:
-                        command = 'delete'
-                        filename = filename.replace('\\', '/')
-                    else:
-                        # test not needed on this OS
-                        os.remove(filename)
-                        continue
+                    # test not needed on this OS
+                    os.remove(filename)
+                    continue
                 action_str = '<action command="%s" search="file" path="%s" />' % \
                     (command, filename)
                 self._test_action_str(action_str)
@@ -309,11 +298,7 @@ class ActionTestCase(common.BleachbitTestCase):
         # On Windows should be case insensitive
         action_str = '<action command="delete" search="glob" path="/tmp/foo*" regex="^FOO2$"/>'
         results = _action_str_to_results(action_str)
-        if 'nt' == os.name:
-            self.assertEqual(len(results), 1)
-            self.assertEqual(results[0]['path'], '/tmp/foo2')
-        else:
-            self.assertEqual(len(results), 0)
+        self.assertEqual(len(results), 0)
 
         # should match second file using negative regex
         action_str = '<action command="delete" search="glob" path="/tmp/foo*" nregex="^(foo1|bar1)$"/>'
@@ -458,7 +443,7 @@ class ActionTestCase(common.BleachbitTestCase):
 
     def test_walk_files(self):
         """Unit test for walk.files"""
-        paths = {'posix': '/var', 'nt': '$WINDIR\\system32'}
+        paths = {'posix': '/var'}
 
         action_str = '<action command="delete" search="walk.files" path="%s" />' % paths[os.name]
         results = 0

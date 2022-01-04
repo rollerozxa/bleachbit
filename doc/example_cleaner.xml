@@ -90,11 +90,5 @@
     <action command="truncate" search="walk.files" path="/var/log" regex="log$" type="f"/>
     <!-- command=sqlite.vacuum defragments an SQLite 3 database -->
     <action command="sqlite.vacuum" search="glob" path="/var/cache/yum/*/*.sqlite"/>
-    <!-- command="winreg" without the attribute 'name' deletes
-           Windows registry keys -->
-    <action command="winreg" path="HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\RunMRU"/>
-    <!-- command="winreg" with the attribute 'name' deletes a
-           named value under a Windows registry key -->
-    <action command="winreg" name="CurrentVersion" path="HKCU\Software\BleachBit"/>
   </option>
 </cleaner>

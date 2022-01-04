@@ -56,15 +56,10 @@ if not hasattr(platform, 'linux_distribution'):
 
 logger = Log.init_log()
 
-# Setting below value to false disables update notification (useful
-# for packages in repositories).
-online_update_notification_enabled = True
-
 #
 # Paths
 #
 
-# Windows
 bleachbit_exe_path = None
 if hasattr(sys, 'frozen'):
     # running frozen in py2exe
@@ -76,8 +71,6 @@ else:
 # license
 license_filename = None
 license_filenames = ('/usr/share/common-licenses/GPL-3',  # Debian, Ubuntu
-                     # Microsoft Windows
-                     os.path.join(bleachbit_exe_path, 'COPYING'),
                      '/usr/share/doc/bleachbit-' + APP_VERSION + '/COPYING',  # CentOS, Fedora, RHEL
                      '/usr/share/licenses/bleachbit/COPYING',  # Fedora 21+, RHEL 7+
                      '/usr/share/doc/packages/bleachbit/COPYING',  # OpenSUSE 11.1
@@ -93,15 +86,6 @@ portable_mode = False
 options_dir = None
 if 'posix' == os.name:
     options_dir = os.path.expanduser("~/.config/bleachbit")
-elif 'nt' == os.name:
-    os.environ.pop('FONTCONFIG_FILE', None)
-    if os.path.exists(os.path.join(bleachbit_exe_path, 'bleachbit.ini')):
-        # portable mode
-        portable_mode = True
-        options_dir = bleachbit_exe_path
-    else:
-        # installed mode
-        options_dir = os.path.expandvars(r"${APPDATA}\BleachBit")
 
 try:
     options_dir = os.environ['BLEACHBIT_TEST_OPTIONS_DIR']
@@ -121,15 +105,10 @@ if not portable_mode:
 personal_cleaners_dir = os.path.join(options_dir, "cleaners")
 
 # system cleaners
-# On Windows in portable mode, the bleachbit_exe_path is equal to
-# options_dir, so be careful that system_cleaner_dir is not set to
-# personal_cleaners_dir.
 if os.path.isdir(os.path.join(bleachbit_exe_path, 'cleaners')) and not portable_mode:
     system_cleaners_dir = os.path.join(bleachbit_exe_path, 'cleaners')
 elif sys.platform.startswith('linux') or sys.platform == 'darwin':
     system_cleaners_dir = '/usr/share/bleachbit/cleaners'
-elif sys.platform == 'win32':
-    system_cleaners_dir = os.path.join(bleachbit_exe_path, 'share\\cleaners\\')
 elif sys.platform[:6] == 'netbsd':
     system_cleaners_dir = '/usr/pkg/share/bleachbit/cleaners'
 elif sys.platform.startswith('openbsd') or sys.platform.startswith('freebsd'):
@@ -139,21 +118,16 @@ else:
     logger.warning(
         'unknown system cleaners directory for platform %s ', sys.platform)
 
-# local cleaners directory for running without installation (Windows or Linux)
+# local cleaners directory for running without installation
 local_cleaners_dir = None
 if portable_mode:
     local_cleaners_dir = os.path.join(bleachbit_exe_path, 'cleaners')
-
-# windows10 theme
-windows10_theme_path = os.path.normpath(os.path.join(bleachbit_exe_path, 'themes/windows10'))
 
 # application icon
 __icons = (
     '/usr/share/pixmaps/bleachbit.png',  # Linux
     '/usr/pkg/share/pixmaps/bleachbit.png',  # NetBSD
     '/usr/local/share/pixmaps/bleachbit.png',  # FreeBSD and OpenBSD
-    os.path.normpath(os.path.join(bleachbit_exe_path,
-                                  'share\\bleachbit.png')),  # Windows
     # When running from source (i.e., not installed).
     os.path.normpath(os.path.join(bleachbit_exe_path, 'bleachbit.png')),
 )
@@ -163,8 +137,7 @@ for __icon in __icons:
         appicon_path = __icon
 
 # menu
-# This path works when running from source (cross platform) or when
-# installed on Windows.
+# This path works when running from source (cross platform).
 app_menu_filename = os.path.join(bleachbit_exe_path, 'data', 'app-menu.ui')
 if not os.path.exists(app_menu_filename) and system_cleaners_dir:
     # This path works when installed on Linux.
@@ -218,19 +191,6 @@ except:
 
 try:
     locale.bindtextdomain('bleachbit', locale_dir)
-except AttributeError:
-    if sys.platform.startswith('win'):
-        try:
-            # We're on Windows; try and use libintl-8.dll instead
-            import ctypes
-            libintl = ctypes.cdll.LoadLibrary('libintl-8.dll')
-        except OSError:
-            # libintl-8.dll isn't available; give up
-            pass
-        else:
-            # bindtextdomain can not handle Unicode
-            libintl.bindtextdomain(b'bleachbit', locale_dir.encode('utf-8'))
-            libintl.bind_textdomain_codeset(b'bleachbit', b'UTF-8')
 except:
     logger.exception('error binding text domain')
 
@@ -292,11 +252,6 @@ help_contents_url = "%s/help/%s" \
 release_notes_url = "%s/release-notes/%s" \
     % (base_url, APP_VERSION)
 update_check_url = "%s/update/%s" % (base_url, APP_VERSION)
-
-# set up environment variables
-if 'nt' == os.name:
-    from bleachbit import Windows
-    Windows.setup_environment()
 
 if 'posix' == os.name:
     # XDG base directory specification

@@ -44,30 +44,8 @@ import time
 
 logger = logging.getLogger(__name__)
 
-if 'nt' == os.name:
-    from pywintypes import error as pywinerror
-    import win32file
-    import bleachbit.Windows
-    os_path_islink = os.path.islink
-    os.path.islink = lambda path: os_path_islink(
-        path) or bleachbit.Windows.is_junction(path)
-
-if 'posix' == os.name:
-    from bleachbit.General import WindowsError
-    pywinerror = WindowsError
-
 try:
     from scandir import walk
-    if 'nt' == os.name:
-        import scandir
-        import bleachbit.Windows
-
-        class _Win32DirEntryPython(scandir.Win32DirEntryPython):
-            def is_symlink(self):
-                return super(_Win32DirEntryPython, self).is_symlink() or bleachbit.Windows.is_junction(self.path)
-
-        scandir.scandir = scandir.scandir_python
-        scandir.DirEntry = scandir.Win32DirEntryPython = _Win32DirEntryPython
 except ImportError:
     if sys.version_info < (3, 5, 0):
         # Python 3.5 incorporated scandir
@@ -106,7 +84,7 @@ def get_filesystem_type(path):
         path = os.sep.join(splitpath[:i]) + os.sep
         if path in partitions:
             return partitions[path]
-            
+
         path = os.sep.join(splitpath[:i])
         if path in partitions:
             return partitions[path]
@@ -333,15 +311,12 @@ def delete(path, shred=False, ignore_missing=False, allow_shred=True):
     """
     from bleachbit.Options import options
     is_special = False
-    path = extended_path(path)
     do_shred = allow_shred and (shred or options.get('shred'))
     if not os.path.lexists(path):
         if ignore_missing:
             return
         raise OSError(2, 'No such file or directory', path)
     if 'posix' == os.name:
-        # With certain (relatively rare) files on Windows os.lstat()
-        # may return Access Denied
         mode = os.lstat(path)[stat.ST_MODE]
         is_special = stat.S_ISFIFO(mode) or stat.S_ISLNK(mode)
     if is_special:
@@ -366,15 +341,6 @@ def delete(path, shred=False, ignore_missing=False, allow_shred=True):
                     logger.info(_("Skipping mount point: %s"), path)
                 else:
                     logger.info(_("Device or resource is busy: %s"), path)
-            else:
-                raise
-        except WindowsError as e:
-            # WindowsError: [Error 145] The directory is not empty:
-            # 'C:\\Documents and Settings\\username\\Local Settings\\Temp\\NAILogs'
-            # Error 145 may happen if the files are scheduled for deletion
-            # during reboot.
-            if 145 == e.winerror:
-                logger.info(_("Directory is not empty: %s"), path)
             else:
                 raise
     elif os.path.isfile(path):
@@ -440,8 +406,6 @@ def ego_owner(filename):
 def exists_in_path(filename):
     """Returns boolean whether the filename exists in the path"""
     delimiter = ':'
-    if 'nt' == os.name:
-        delimiter = ';'
     for dirname in os.getenv('PATH').split(delimiter):
         if os.path.exists(os.path.join(dirname, filename)):
             return True
@@ -496,32 +460,8 @@ def expand_glob_join(pathname1, pathname2):
     return ret
 
 
-def extended_path(path):
-    """If applicable, return the extended Windows pathname"""
-    if 'nt' == os.name:
-        if path.startswith(r'\\?'):
-            return path
-        if path.startswith(r'\\'):
-            return '\\\\?\\unc\\' + path[2:]
-        return '\\\\?\\' + path
-    return path
-
-
-def extended_path_undo(path):
-    """"""
-    if 'nt' == os.name:
-        if path.startswith(r'\\?\unc'):
-            return '\\' + path[7:]
-        if path.startswith(r'\\?'):
-            return path[4:]
-    return path
-
-
 def free_space(pathname):
     """Return free space in bytes"""
-    if 'nt' == os.name:
-        import psutil
-        return psutil.disk_usage(pathname).free
     mystat = os.statvfs(pathname)
     return mystat.f_bfree * mystat.f_bsize
 
@@ -540,19 +480,7 @@ def getsize(path):
                 return 0
             raise
         return __stat.st_blocks * 512
-    if 'nt' == os.name:
-        # On rare files os.path.getsize() returns access denied, so first
-        # try FindFilesW.
-        # Also, apply prefix to use extended-length paths to support longer
-        # filenames.
-        finddata = win32file.FindFilesW(extended_path(path))
-        if not finddata:
-            # FindFilesW does not work for directories, so fall back to
-            # getsize()
-            return os.path.getsize(path)
-        else:
-            size = (finddata[0][4] * (0xffffffff + 1)) + finddata[0][5]
-            return size
+
     return os.path.getsize(path)
 
 
@@ -588,17 +516,6 @@ def guess_overwrite_paths():
         ret.append(home)
         if not same_partition(home, '/tmp/'):
             ret.append('/tmp')
-    elif 'nt' == os.name:
-        localtmp = os.path.expandvars('$TMP')
-        if not os.path.exists(localtmp):
-            logger.warning(_("The environment variable TMP refers to a directory that does not exist: %s"), localtmp)
-            localtmp = None
-        from bleachbit.Windows import get_fixed_drives
-        for drive in get_fixed_drives():
-            if localtmp and same_partition(localtmp, drive):
-                ret.append(localtmp)
-            else:
-                ret.append(drive)
     else:
         raise NotImplementedError('Unsupported OS in guess_overwrite_paths')
     return ret
@@ -668,18 +585,6 @@ def listdir(directory):
 
 def same_partition(dir1, dir2):
     """Are both directories on the same partition?"""
-    if 'nt' == os.name:
-        try:
-            return free_space(dir1) == free_space(dir2)
-        except pywinerror as e:
-            if 5 == e.winerror:
-                # Microsoft Office 2010 Starter Edition has a virtual
-                # drive that gives access denied
-                # https://bugs.launchpad.net/bleachbit/+bug/1372179
-                # https://bugs.launchpad.net/bleachbit/+bug/1474848
-                # https://github.com/az0/bleachbit/issues/27
-                return dir1[0] == dir2[0]
-            raise
     stat1 = os.statvfs(dir1)
     stat2 = os.statvfs(dir2)
     return stat1[stat.ST_DEV] == stat2[stat.ST_DEV]
@@ -692,9 +597,6 @@ def sync():
         rc = ctypes.cdll.LoadLibrary('libc.so.6').sync()
         if 0 != rc:
             logger.error('sync() returned code %d', rc)
-    elif 'nt' == os.name:
-        import ctypes
-        ctypes.cdll.LoadLibrary('msvcrt.dll')._flushall()
 
 
 def truncate_f(f):
@@ -750,28 +652,7 @@ def whitelisted_posix(path, check_realpath=True):
     return False
 
 
-def whitelisted_windows(path):
-    """Check whether this Windows path is whitelisted"""
-    from bleachbit.Options import options
-    for pathname in options.get_whitelist_paths():
-        # Windows is case insensitive
-        if pathname[0] == 'file' and path.lower() == pathname[1].lower():
-            return True
-        if pathname[0] == 'folder':
-            if path.lower() == pathname[1].lower():
-                return True
-            if path.lower().startswith(pathname[1].lower() + os.sep):
-                return True
-            # Simple drive letter like C:\ matches everything below
-            if len(pathname[1]) == 3 and path.lower().startswith(pathname[1].lower()):
-                return True
-    return False
-
-
-if 'nt' == os.name:
-    whitelisted = whitelisted_windows
-else:
-    whitelisted = whitelisted_posix
+whitelisted = whitelisted_posix
 
 
 def wipe_contents(path, truncate=True):
@@ -801,43 +682,8 @@ def wipe_contents(path, truncate=True):
         os.fsync(f.fileno())  # force write to disk
         return f
 
-    if 'nt' == os.name:
-        from win32com.shell.shell import IsUserAnAdmin
+    f = wipe_write()
 
-    if 'nt' == os.name and IsUserAnAdmin():
-        from bleachbit.WindowsWipe import file_wipe, UnsupportedFileSystemError
-        import warnings
-        from bleachbit import _
-        try:
-            file_wipe(path)
-        except pywinerror as e:
-            # 32=The process cannot access the file because it is being used by another process.
-            # 33=The process cannot access the file because another process has
-            # locked a portion of the file.
-            if not e.winerror in (32, 33):
-                # handle only locking errors
-                raise
-            # Try to truncate the file. This makes the behavior consistent
-            # with Linux and with Windows when IsUserAdmin=False.
-            try:
-                with open(path, 'w') as f:
-                    truncate_f(f)
-            except IOError as e2:
-                if errno.EACCES == e2.errno:
-                    # Common when the file is locked
-                    # Errno 13 Permission Denied
-                    pass
-            # translate exception to mark file to deletion in Command.py
-            raise WindowsError(e.winerror, e.strerror)
-        except UnsupportedFileSystemError as e:
-            warnings.warn(
-                _('There was at least one file on a file system that does not support advanced overwriting.'), UserWarning)
-            f = wipe_write()
-        else:
-            # The wipe succeed, so prepare to truncate.
-            f = open(path, 'w')
-    else:
-        f = wipe_write()
     if truncate:
         truncate_f(f)
     f.close()
@@ -956,7 +802,7 @@ def wipe_path(pathname, idle=False):
         # Write large blocks to quickly fill the disk.
         blanks = b'\0' * 65536
         writtensize = 0
-        
+
         while True:
             try:
                 if fstype != 'vfat':
@@ -967,7 +813,7 @@ def wipe_path(pathname, idle=False):
                     writtensize += f.write(blanks)
                 else:
                     break
-            
+
             except IOError as e:
                 if e.errno == errno.ENOSPC:
                     if len(blanks) > 1:

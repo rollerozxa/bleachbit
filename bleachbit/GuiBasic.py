@@ -36,16 +36,9 @@ except ModuleNotFoundError as e:
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk  # keep after gi.require_version()
 
-if os.name == 'nt':
-    from bleachbit import Windows
-
 
 def browse_folder(parent, title, multiple, stock_button):
     """Ask the user to select a folder.  Return the full path or None."""
-
-    if os.name == 'nt' and not os.getenv('BB_NATIVE'):
-        ret = Windows.browse_folder(parent, title)
-        return [ret] if multiple and not ret is None else ret
 
     # fall back to GTK+
     chooser = Gtk.FileChooserDialog(transient_for=parent,
@@ -72,9 +65,6 @@ def browse_folder(parent, title, multiple, stock_button):
 def browse_file(parent, title):
     """Prompt user to select a single file"""
 
-    if os.name == 'nt' and not os.getenv('BB_NATIVE'):
-        return Windows.browse_file(parent, title)
-
     chooser = Gtk.FileChooserDialog(title=title,
                                     transient_for=parent,
                                     action=Gtk.FileChooserAction.OPEN)
@@ -95,9 +85,6 @@ def browse_file(parent, title):
 
 def browse_files(parent, title):
     """Prompt user to select multiple files to delete"""
-
-    if os.name == 'nt' and not os.getenv('BB_NATIVE'):
-        return Windows.browse_files(parent, title)
 
     chooser = Gtk.FileChooserDialog(title=title,
                                     transient_for=parent,
@@ -195,12 +182,7 @@ def open_url(url, parent_window=None, prompt=True):
         if Gtk.ResponseType.OK != resp:
             return
     # open web browser
-    if os.name == 'nt':
-        # in Gtk.show_uri() avoid 'glib.GError: No application is registered as
-        # handling this file'
-        import webbrowser
-        webbrowser.open(url)
-    elif (Gtk.get_major_version(), Gtk.get_minor_version()) < (3, 22):
+    if (Gtk.get_major_version(), Gtk.get_minor_version()) < (3, 22):
         # Ubuntu 16.04 LTS ships with GTK 3.18
         Gtk.show_uri(None, url, Gdk.CURRENT_TIME)
     else:

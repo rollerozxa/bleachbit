@@ -29,14 +29,10 @@ import sys
 import tempfile
 import unittest
 import mock
-if 'win32' == sys.platform:
-    import winreg
-    import win32gui
 
 
 import bleachbit
 import bleachbit.Options
-from bleachbit.FileUtilities import extended_path
 from bleachbit.General import sudo_mode
 
 
@@ -54,7 +50,7 @@ class BleachbitTestCase(unittest.TestCase):
 
     @classmethod
     def _patch_options_paths(cls):
-        to_patch = [('bleachbit.options_dir', cls.tempdir), 
+        to_patch = [('bleachbit.options_dir', cls.tempdir),
                     ('bleachbit.options_file', os.path.join(cls.tempdir, "bleachbit.ini")),
                     ('bleachbit.personal_cleaners_dir', os.path.join(cls.tempdir, "cleaners"))]
         for target, source in to_patch:
@@ -71,11 +67,11 @@ class BleachbitTestCase(unittest.TestCase):
             shutil.rmtree(cls.tempdir)
         if 'BLEACHBIT_TEST_OPTIONS_DIR' not in os.environ:
             cls._stop_patch_options_paths()
-    
+
     @classmethod
     def _stop_patch_options_paths(cls):
         for patcher in cls._patchers:
-            patcher.stop()        
+            patcher.stop()
 
     def setUp(cls):
         """Call before each test method"""
@@ -140,9 +136,9 @@ class BleachbitTestCase(unittest.TestCase):
         """Create a temporary file, optionally writing contents to it"""
         if not os.path.isabs(filename):
             filename = os.path.join(self.tempdir, filename)
-        with open(extended_path(filename), mode) as f:
+        with open(filename, mode) as f:
             f.write(contents)
-        assert (os.path.exists(extended_path(filename)))
+        assert (os.path.exists(filename))
         return filename
 
     def mkstemp(self, **kwargs):
@@ -159,8 +155,6 @@ class BleachbitTestCase(unittest.TestCase):
 
 
 def getTestPath(path):
-    if 'nt' == os.name:
-        return extended_path(os.path.normpath(path))
     return path
 
 
@@ -184,19 +178,9 @@ def put_env(key, val):
         os.environ[key] = val
 
 
-def skipIfWindows(f):
-    """Skip unit test if running on Windows"""
-    return unittest.skipIf('win32' == sys.platform, 'running on Windows')(f)
-
-
 def skipUnlessDestructive(f):
     """Skip unless destructive tests are allowed"""
     return unittest.skipUnless(os.getenv('DESTRUCTIVE_TESTS') == 'T', 'environment variable DESTRUCTIVE_TESTS not set to T')(f)
-
-
-def skipUnlessWindows(f):
-    """Skip unit test unless running on Windows"""
-    return unittest.skipUnless('win32' == sys.platform, 'not running on Windows')(f)
 
 
 def touch_file(filename):
@@ -237,21 +221,3 @@ def validate_result(self, result, really_delete=False):
         else:
             self.assertLExists(filename)
 
-
-def get_winregistry_value(key, subkey):
-    try:
-        with winreg.OpenKey(key,  subkey) as hkey:
-            return winreg.QueryValue(hkey, None)
-    except FileNotFoundError:
-        return None
-
-
-def get_opened_windows_titles():
-    opened_windows_titles = []
-
-    def enumerate_opened_windows_titles(hwnd, ctx):
-        if win32gui.IsWindowVisible(hwnd):
-            opened_windows_titles.append(win32gui.GetWindowText(hwnd))
-
-    win32gui.EnumWindows(enumerate_opened_windows_titles, None)
-    return opened_windows_titles

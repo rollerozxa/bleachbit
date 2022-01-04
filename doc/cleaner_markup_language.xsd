@@ -142,8 +142,6 @@
                             <xs:enumeration value="process"/>
                             <xs:enumeration value="sqlite.vacuum"/>
                             <xs:enumeration value="truncate"/>
-                            <xs:enumeration value="win.shell.change.notify"/>
-                            <xs:enumeration value="winreg"/>
                             <xs:enumeration value="yum.clean_all"/>
                           </xs:restriction>
                         </xs:simpleType>

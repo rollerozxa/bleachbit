@@ -28,60 +28,12 @@ import sys
 import tempfile
 from setuptools import setup
 
-if sys.platform == 'win32':
-    # workaround for
-    # Error: Namespace packages not yet supported: Skipping package 'pywintypes'
-    import importlib
-    for m in ('pywintypes', 'pythoncom'):
-        l = importlib.find_loader(m, None)
-        __import__(m)
-        sys.modules[m].__loader__ = l
-
-    try:
-        import py2exe
-    except ImportError:
-        print('warning: py2exe not available')
-
 import bleachbit
 import bleachbit.General
 import bleachbit.FileUtilities
 
 APP_NAME = "BleachBit - Free space and maintain privacy"
 APP_DESCRIPTION = "BleachBit frees space and maintains privacy by quickly wiping files you don't need and didn't know you had. Supported applications include Edge, Firefox, Google Chrome, VLC, and many others."
-
-#
-# begin win32com.shell workaround for py2exe
-# copied from http://spambayes.svn.sourceforge.net/viewvc/spambayes/trunk/spambayes/windows/py2exe/setup_all.py?revision=3245&content-type=text%2Fplain
-# under Python license compatible with GPL
-#
-
-# ModuleFinder can't handle runtime changes to __path__, but win32com uses them,
-# particularly for people who build from sources.  Hook this in.
-try:
-    # py2exe 0.6.4 introduced a replacement modulefinder.
-    # This means we have to add package paths there, not to the built-in
-    # one.  If this new modulefinder gets integrated into Python, then
-    # we might be able to revert this some day.
-    try:
-        import py2exe.mf as modulefinder
-    except ImportError:
-        import modulefinder
-    import win32com
-    for p in win32com.__path__[1:]:
-        modulefinder.AddPackagePath("win32com", p)
-    for extra in ["win32com.shell", "win32com.mapi"]:
-        __import__(extra)
-        m = sys.modules[extra]
-        for p in m.__path__[1:]:
-            modulefinder.AddPackagePath(extra, p)
-except ImportError:
-    # no build path setup, no worries.
-    pass
-
-#
-# end win32com.shell workaround for py2exe
-#
-
 
 data_files = []
 if sys.platform.startswith('linux'):
@@ -97,98 +49,6 @@ elif sys.platform.startswith('openbsd') or sys.platform.startswith('freebsd'):
 
 
 args = {}
-if 'py2exe' in sys.argv:
-    args['windows'] = [{
-        'script': 'bleachbit.py',
-        'product_name': APP_NAME,
-        'description': APP_DESCRIPTION,
-        'version': bleachbit.APP_VERSION,
-        'icon_resources': [(1, 'windows/bleachbit.ico')]
-    }]
-    args['console'] = [{
-        'script': 'bleachbit_console.py',
-        'product_name': APP_NAME,
-        'description': APP_DESCRIPTION,
-        'version': bleachbit.APP_VERSION,
-        'icon_resources': [(1, 'windows/bleachbit.ico')]
-    }]
-    args['options'] = {
-        'py2exe': {
-            'packages': ['encodings', 'gi', 'plyer'],
-            'optimize': 2,  # extra optimization (like python -OO)
-            'includes': ['gi'],
-            'excludes': ['pyreadline', 'difflib', 'doctest',
-                         'pickle', 'ftplib', 'bleachbit.Unix'],
-            'dll_excludes': [
-                'libgstreamer-1.0-0.dll',
-                'CRYPT32.DLL',  # required by ssl
-                'DNSAPI.DLL',
-                'IPHLPAPI.DLL',  # psutil
-                'MPR.dll',
-                'MSIMG32.DLL',
-                'MSWSOCK.dll',
-                'NSI.dll',  # psutil
-                'PDH.DLL',  # psutil
-                'PSAPI.DLL',
-                'POWRPROF.dll',
-                'USP10.DLL',
-                'WINNSI.DLL',  # psutil
-                'WTSAPI32.DLL',  # psutil
-                'api-ms-win-core-apiquery-l1-1-0.dll',
-                'api-ms-win-core-crt-l1-1-0.dll',
-                'api-ms-win-core-crt-l2-1-0.dll',
-                'api-ms-win-core-debug-l1-1-1.dll',
-                'api-ms-win-core-delayload-l1-1-1.dll',
-                'api-ms-win-core-errorhandling-l1-1-0.dll',
-                'api-ms-win-core-errorhandling-l1-1-1.dll',
-                'api-ms-win-core-file-l1-1-0.dll',
-                'api-ms-win-core-file-l1-2-1.dll',
-                'api-ms-win-core-handle-l1-1-0.dll',
-                'api-ms-win-core-heap-l1-1-0.dll',
-                'api-ms-win-core-heap-l1-2-0.dll',
-                'api-ms-win-core-heap-obsolete-l1-1-0.dll',
-                'api-ms-win-core-io-l1-1-1.dll',
-                'api-ms-win-core-kernel32-legacy-l1-1-0.dll',
-                'api-ms-win-core-kernel32-legacy-l1-1-1.dll',
-                'api-ms-win-core-libraryloader-l1-2-0.dll',
-                'api-ms-win-core-libraryloader-l1-2-1.dll',
-                'api-ms-win-core-localization-l1-2-1.dll',
-                'api-ms-win-core-localization-obsolete-l1-2-0.dll',
-                'api-ms-win-core-memory-l1-1-0.dll',
-                'api-ms-win-core-memory-l1-1-2.dll',
-                'api-ms-win-core-perfstm-l1-1-0.dll',
-                'api-ms-win-core-processenvironment-l1-2-0.dll',
-                'api-ms-win-core-processthreads-l1-1-0.dll',
-                'api-ms-win-core-processthreads-l1-1-2.dll',
-                'api-ms-win-core-profile-l1-1-0.dll',
-                'api-ms-win-core-registry-l1-1-0.dll',
-                'api-ms-win-core-registry-l2-1-0.dll',
-                'api-ms-win-core-string-l1-1-0.dll',
-                'api-ms-win-core-string-obsolete-l1-1-0.dll',
-                'api-ms-win-core-synch-l1-1-0.dll',
-                'api-ms-win-core-synch-l1-2-0.dll',
-                'api-ms-win-core-sysinfo-l1-1-0.dll',
-                'api-ms-win-core-sysinfo-l1-2-1.dll',
-                'api-ms-win-core-threadpool-l1-2-0.dll',
-                'api-ms-win-core-timezone-l1-1-0.dll',
-                'api-ms-win-core-util-l1-1-0.dll',
-                'api-ms-win-eventing-classicprovider-l1-1-0.dll',
-                'api-ms-win-eventing-consumer-l1-1-0.dll',
-                'api-ms-win-eventing-controller-l1-1-0.dll',
-                'api-ms-win-eventlog-legacy-l1-1-0.dll',
-                'api-ms-win-perf-legacy-l1-1-0.dll',
-                'api-ms-win-security-base-l1-2-0.dll',
-                'w9xpopen.exe',  # not needed after Windows 9x
-            ],
-            'compressed': True  # create a compressed zipfile
-        }
-    }
-
-    # check for 32-bit
-    import struct
-    bits = 8 * struct.calcsize('P')
-    assert 32 == bits
-
 
 def recompile_mo(langdir, app, langid, dst):
     """Recompile gettext .mo file"""
@@ -269,7 +129,7 @@ def run_setup():
           download_url="https://www.bleachbit.org/download",
           license="GPLv3",
           url=bleachbit.APP_URL,
-          platforms='Linux and Windows; Python v2.6 and 2.7; GTK v3.12+',
+          platforms='Linux; Python v2.6 and 2.7; GTK v3.12+',
           packages=['bleachbit', 'bleachbit.markovify'],
           **args)
 
