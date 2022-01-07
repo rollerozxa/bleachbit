@@ -31,8 +31,6 @@ clean:
 	@rm -rf BleachBit-Portable
 	@rm -rf BleachBit-*-portable.zip
 	@rm -vf MANIFEST # created by setup.py
-	make -C po clean
-	@rm -vrf locale
 	@rm -vrf {*/,./}*.{pychecker,pylint,pyflakes}.log
 	@rm -vrf htmlcov .coverage # code coverage reports
 
@@ -69,9 +67,6 @@ install:
 	# icon
 	mkdir -p $(DESTDIR)$(datadir)/pixmaps
 	$(INSTALL_DATA) bleachbit.png $(DESTDIR)$(datadir)/pixmaps/
-
-	# translations
-	make -C po install DESTDIR=$(DESTDIR)
 
 	# PolicyKit
 	mkdir -p $(DESTDIR)$(datadir)/polkit-1/actions

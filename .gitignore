@@ -8,11 +8,6 @@ htmlcov
 # Byte-compiled / optimized / DLL files
 *.py[cod]
 
-# Compiled language files
-po/*.mo
-po/*.pot
-locale/
-
 # editor backups and temporary files
 *~
 *.bak

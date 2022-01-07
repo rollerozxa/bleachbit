@@ -146,62 +146,19 @@ if not os.path.exists(app_menu_filename) and system_cleaners_dir:
 if not os.path.exists(app_menu_filename):
     logger.error('unknown location for app-menu.ui')
 
-# locale directory
-if os.path.exists("./locale/"):
-    # local locale (personal)
-    locale_dir = os.path.abspath("./locale/")
-# system-wide installed locale
-elif sys.platform.startswith("linux") or sys.platform == "darwin":
-    locale_dir = "/usr/share/locale/"
-elif sys.platform == "win32":
-    locale_dir = os.path.join(bleachbit_exe_path, "share\\locale\\")
-elif sys.platform[:6] == "netbsd":
-    locale_dir = "/usr/pkg/share/locale/"
-elif sys.platform.startswith("openbsd") or sys.platform.startswith("freebsd"):
-    locale_dir = "/usr/local/share/locale/"
-
-
 
 #
 # gettext
 #
-try:
-    (user_locale, encoding) = locale.getdefaultlocale()
-except:
-    logger.exception('error getting locale')
-    user_locale = None
-    encoding = None
+def _(msg):
+    """Dummy replacement for gettext"""
+    return msg
 
-if user_locale is None:
-    user_locale = 'C'
-    logger.warning("no default locale found.  Assuming '%s'", user_locale)
-
-if 'win32' == sys.platform:
-    os.environ['LANG'] = user_locale
-
-try:
-    if not os.path.exists(locale_dir):
-        raise RuntimeError('translations not installed')
-    t = gettext.translation('bleachbit', locale_dir)
-    _ = t.gettext
-except:
-    def _(msg):
-        """Dummy replacement for gettext"""
-        return msg
-
-try:
-    locale.bindtextdomain('bleachbit', locale_dir)
-except:
-    logger.exception('error binding text domain')
-
-try:
-    ngettext = t.ngettext
-except:
-    def ngettext(singular, plural, n):
-        """Dummy replacement for plural gettext"""
-        if 1 == n:
-            return singular
-        return plural
+def ngettext(singular, plural, n):
+    """Dummy replacement for plural gettext"""
+    if 1 == n:
+        return singular
+    return plural
 
 
 #

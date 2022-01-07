@@ -21,8 +21,6 @@ include doc/example_cleaner.xml
 include org.bleachbit.BleachBit.desktop
 include org.bleachbit.BleachBit.metainfo.xml
 include org.bleachbit.policy
-include po/*po
-include po/Makefile
 include setup.py
 include tests/*py
 recursive-include bleachbit *py

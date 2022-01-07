@@ -55,20 +55,14 @@ def user_agent():
         mach = platform.machine()
         rel = platform.release()
         __os = __sys + '/' + mach + ' ' + rel
-    __locale = ""
-    try:
-        import locale
-        __locale = locale.getdefaultlocale()[0]  # e.g., en_US
-    except:
-        logger.exception('Exception when getting default locale')
 
     try:
         gi.require_version('Gtk', '3.0')
         from gi.repository import Gtk
-        gtkver = '; GTK %s' % '.'.join([str(x) for x in Gtk.gtk_version])
+        gtkver = 'GTK %s' % '.'.join([str(x) for x in Gtk.gtk_version])
     except:
         gtkver = ""
 
-    agent = "BleachBit/%s (%s; %s; %s%s)" % (bleachbit.APP_VERSION,
-                                             __platform, __os, __locale, gtkver)
+    agent = "BleachBit/%s (%s; %s; %s)" % (bleachbit.APP_VERSION,
+                                             __platform, __os, gtkver)
     return agent

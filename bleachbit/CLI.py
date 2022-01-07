@@ -212,10 +212,6 @@ There is NO WARRANTY, to the extent permitted by law.""" % APP_VERSION)
     if options.list_cleaners:
         list_cleaners()
         sys.exit(0)
-    if options.pot:
-        from bleachbit.CleanerML import create_pot
-        create_pot()
-        sys.exit(0)
     if options.wipe_free_space:
         if len(args) < 1:
             logger.error(_("No directories given for --wipe-free-space"))

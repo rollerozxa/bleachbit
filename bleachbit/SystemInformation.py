@@ -63,7 +63,6 @@ def get_system_information():
 
     # this section is for variables defined in __init__.py
     s += "\nlocal_cleaners_dir = %s" % bleachbit.local_cleaners_dir
-    s += "\nlocale_dir = %s" % bleachbit.locale_dir
     s += "\noptions_dir = %s" % bleachbit.options_dir
     s += "\npersonal_cleaners_dir = %s" % bleachbit.personal_cleaners_dir
     s += "\nsystem_cleaners_dir = %s" % bleachbit.system_cleaners_dir

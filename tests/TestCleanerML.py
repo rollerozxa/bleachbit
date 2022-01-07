@@ -66,14 +66,6 @@ class CleanerMLTestCase(common.BleachbitTestCase):
             self.assertEqual(boolstr_to_bool(arg.lower()), output)
             self.assertEqual(boolstr_to_bool(arg.upper()), output)
 
-    def test_create_pot(self):
-        """Unit test for create_pot()"""
-        os.chdir('po')
-        try:
-            create_pot()
-        finally:
-            os.chdir('..')
-
     def test_list_cleanerml_files(self):
         """Unit test for list_cleanerml_files()"""
         for pathname in list_cleanerml_files():
@@ -115,10 +107,6 @@ class CleanerMLTestCase(common.BleachbitTestCase):
         # as unknown operating system
         with self.assertRaises(RuntimeError):
             xmlcleaner.os_match('linux', 'hal9000')
-
-    def test_pot_fragment(self):
-        """Unit test for pot_fragment()"""
-        self.assertIsString(pot_fragment("Foo", 'bar.xml'))
 
     def test_var(self):
         """Test the <var> element"""

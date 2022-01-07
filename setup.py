@@ -47,77 +47,7 @@ elif sys.platform.startswith('openbsd') or sys.platform.startswith('freebsd'):
         ('/usr/local/share/applications', ['./org.bleachbit.BleachBit.desktop']))
     data_files.append(('/usr/local/share/pixmaps/', ['./bleachbit.png']))
 
-
 args = {}
-
-def recompile_mo(langdir, app, langid, dst):
-    """Recompile gettext .mo file"""
-
-    if not bleachbit.FileUtilities.exe_exists('msgunfmt') and not bleachbit.FileUtilities.exe_exists('msgunfmt.exe'):
-        print('warning: msgunfmt missing: skipping recompile')
-        return
-
-    mo_pathname = os.path.normpath('%s/LC_MESSAGES/%s.mo' % (langdir, app))
-    if not os.path.exists(mo_pathname):
-        print('info: does not exist: %s', mo_pathname)
-        return
-
-    # decompile .mo to .po
-    po = os.path.join(dst, langid + '.po')
-    __args = ['msgunfmt', '-o', po,
-              mo_pathname]
-    ret = bleachbit.General.run_external(__args)
-    if ret[0] != 0:
-        raise RuntimeError(ret[2])
-
-    # shrink .po
-    po2 = os.path.join(dst, langid + '.po2')
-    __args = ['msgmerge', '--no-fuzzy-matching', po,
-              os.path.normpath('windows/%s.pot' % app),
-              '-o', po2]
-    ret = bleachbit.General.run_external(__args)
-    if ret[0] != 0:
-        raise RuntimeError(ret[2])
-
-    # compile smaller .po to smaller .mo
-    __args = ['msgfmt', po2, '-o', mo_pathname]
-    ret = bleachbit.General.run_external(__args)
-    if ret[0] != 0:
-        raise RuntimeError(ret[2])
-
-    # clean up
-    os.remove(po)
-    os.remove(po2)
-
-
-def supported_languages():
-    """Return list of supported languages by scanning ./po/"""
-    langs = []
-    for pathname in glob.glob('po/*.po'):
-        basename = os.path.basename(pathname)
-        langs.append(os.path.splitext(basename)[0])
-    return sorted(langs)
-
-
-def clean_dist_locale():
-    """Clean dist/share/locale"""
-    tmpd = tempfile.mkdtemp('gtk_locale')
-    langs = supported_languages()
-    basedir = os.path.normpath('dist/share/locale')
-    for langid in sorted(os.listdir(basedir)):
-        langdir = os.path.join(basedir, langid)
-        if langid in langs:
-            print("recompiling supported GTK language = %s" % langid)
-            # reduce the size of the .mo file
-            recompile_mo(langdir, 'gtk30', langid, tmpd)
-        else:
-            print("removing unsupported GTK language = %s" % langid)
-            # remove language supported by GTK+ but not by BleachBit
-            cmd = 'rd /s /q ' + langdir
-            print(cmd)
-            os.system(cmd)
-    os.rmdir(tmpd)
-
 
 def run_setup():
     setup(name='bleachbit',
@@ -135,7 +65,4 @@ def run_setup():
 
 
 if __name__ == '__main__':
-    if 2 == len(sys.argv) and sys.argv[1] == 'clean-dist':
-        clean_dist_locale()
-    else:
-        run_setup()
+    run_setup()
